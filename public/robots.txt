@@ -1,0 +1,8 @@
+# Demo/preview deployment — not the live site.
+# Keeps an in-progress build with placeholder content and simulated payments out of
+# search results, where it could be mistaken for the real barbershop.
+#
+# BEFORE GOING LIVE: delete this file and remove the X-Robots-Tag header from vercel.json,
+# otherwise the real site will never be indexed.
+User-agent: *
+Disallow: /

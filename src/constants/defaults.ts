@@ -1,6 +1,16 @@
 import type { Service, DailySpecial, OwnerProfile, ShopInfo, CarouselImage } from '../types';
 
-export const ADMIN_PASSWORD = 'Luan@2015';
+/**
+ * Admin gate password.
+ *
+ * IMPORTANT — this is not security, and cannot be. The check runs in the browser, so whatever
+ * value ends up here is readable by anyone who opens devtools or greps the JS bundle. Reading it
+ * from an env var only keeps it out of the git repo; it is still shipped to every visitor.
+ *
+ * That is acceptable for a demo whose data is per-device localStorage anyway. Do not reuse a
+ * password from anywhere else, and treat /admin as public until a real backend authenticates it.
+ */
+export const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || 'Luan@2015';
 
 /**
  * Canonical, geocodable address used to build the map embed.

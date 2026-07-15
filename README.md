@@ -1,32 +1,73 @@
-# React + TypeScript + Vite
+# Luan Studio Barber
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Site institucional e sistema de agendamento da barbearia Luan Studio, em Aracaju/SE.
 
-Currently, two official plugins are available:
+React 19 + TypeScript + Vite + Tailwind + Zustand.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Rodando localmente
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install
+npm run dev      # http://localhost:5173
+npm run build    # gera dist/
+npm run lint
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+## Rotas
+
+| Rota       | Descrição                                          |
+| ---------- | -------------------------------------------------- |
+| `/`        | Site público (hero, promoções, sobre, localização)  |
+| `/booking` | Catálogo de serviços/preços + checkout             |
+| `/admin`   | Painel administrativo (protegido por senha)         |
+
+## Deploy (Vercel)
+
+O projeto é uma SPA estática. O [`vercel.json`](./vercel.json) já contém tudo que o Vercel precisa:
+
+- **`rewrites`** — obrigatório. Sem ele, acessar `/booking` ou `/admin` direto (ou dar F5 nessas
+  páginas) retorna **404**, porque não existe arquivo nesses caminhos: o roteamento é do
+  React Router, no navegador. A regra faz o `index.html` responder a qualquer rota, e o Vercel
+  continua servindo os arquivos reais de `/assets` antes de aplicar o rewrite.
+- `Cache-Control` nos assets (o nome tem hash, então o cache pode ser imutável).
+- `X-Robots-Tag: noindex` + [`robots.txt`](./public/robots.txt) — mantém o preview fora do Google.
+
+Basta importar o repositório no Vercel; o build é detectado automaticamente.
+
+### Antes de ir para produção
+
+1. Remover `public/robots.txt` e o header `X-Robots-Tag` do `vercel.json`, senão o site real
+   nunca será indexado.
+2. Trocar as imagens placeholder (Unsplash) por fotos reais da barbearia — carrossel, foto do
+   Luan e certificados, em `src/constants/defaults.ts`.
+3. Rever as limitações abaixo.
+
+## Limitações conhecidas (versão frontend-only)
+
+Este é um projeto **sem backend**. Isso é intencional nesta fase, mas define o que o sistema
+pode e não pode fazer:
+
+- **Os dados não saem do navegador.** Agendamentos, folgas e preços ficam em `localStorage`,
+  por dispositivo. Um agendamento feito no celular do cliente **não aparece** no painel do
+  barbeiro em outro aparelho. Abas do mesmo navegador ficam sincronizadas; aparelhos
+  diferentes, não.
+- **A senha do `/admin` é pública.** A verificação roda no navegador, então a senha está no
+  bundle JavaScript e é legível por qualquer visitante. `VITE_ADMIN_PASSWORD` só tira o valor do
+  repositório — não do bundle. Trate `/admin` como público até existir autenticação de servidor.
+- **O Pix é simulado.** O QR Code é ilustrativo e nenhuma cobrança real é gerada. O botão
+  "Já paguei" apenas sinaliza ao barbeiro que o cliente afirma ter pago.
+- **E-mails são manuais.** O cancelamento abre o programa de e-mail do barbeiro com o texto
+  pronto; nada é enviado automaticamente.
+
+Resolver qualquer um destes itens exige backend (banco de dados, autenticação, gateway de
+pagamento e envio de e-mail).
+
+## Retenção de dados
+
+- Lista ativa: o trabalho do dia. Concluídos/cancelados saem a partir das 22:00.
+- Histórico: mantido durante o ano corrente para o dashboard; apagado na virada do ano.
+
+## Variáveis de ambiente
+
+Veja [`.env.example`](./.env.example). Tudo com prefixo `VITE_` vai para o navegador e **não é
+secreto**.
