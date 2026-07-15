@@ -1,0 +1,103 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  body {
+    @apply antialiased;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-brand-cream dark:bg-brand-black;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-brand-gold rounded-full;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center px-6 py-3 font-medium text-brand-black bg-brand-gold rounded hover:bg-brand-gold/90 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-brand-gold focus:ring-offset-2 dark:focus:ring-offset-brand-black disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  
+  .btn-secondary {
+    @apply inline-flex items-center justify-center px-6 py-3 font-medium border-2 border-brand-gold text-brand-gold rounded hover:bg-brand-gold hover:text-brand-black transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-brand-gold focus:ring-offset-2 dark:focus:ring-offset-brand-black;
+  }
+
+  /*
+   * No backdrop-blur here on purpose. These cards sit on opaque section backgrounds, so the
+   * blur sampled nothing visible while still forcing the browser to snapshot and filter the
+   * backdrop behind every card on every frame — one of the costliest effects available, paid
+   * for no visual gain. Solid tints render identically and cost nothing.
+   */
+  .card-glass {
+    @apply bg-white/70 dark:bg-brand-gray/80 border border-white/20 dark:border-white/10 rounded-xl shadow-lg;
+  }
+
+  /*
+   * Attention ring for the hero CTA. Only transform and opacity animate, so the compositor
+   * handles it without repainting; the box-shadow itself is static.
+   */
+  .pulse-ring {
+    @apply relative;
+  }
+
+  .pulse-ring::after {
+    content: '';
+    @apply absolute inset-0 rounded pointer-events-none;
+    box-shadow: 0 0 0 2px rgba(201, 169, 110, 0.6);
+    animation: pulseRing 2s ease-out infinite;
+    will-change: transform, opacity;
+  }
+}
+
+@keyframes pulseRing {
+  0% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1.18);
+    opacity: 0;
+  }
+}
+
+/* Respect a visitor's reduced-motion setting: kill the looping ring outright. */
+@media (prefers-reduced-motion: reduce) {
+  .pulse-ring::after {
+    animation: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@layer components {
+  
+  .input-field {
+    @apply w-full px-4 py-3 bg-white dark:bg-brand-darkgray border border-gray-300 dark:border-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-brand-gold focus:border-transparent text-brand-black dark:text-brand-cream transition-colors placeholder:text-gray-400;
+  }
+}
+
+/* Utilities for hiding scrollbar when needed */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}

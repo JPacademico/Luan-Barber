@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Painel Administrativo Luan Studio">
+  <rect width="64" height="64" rx="14" fill="#111827"/>
+  <rect x="3" y="3" width="58" height="58" rx="11.5" fill="none" stroke="#38BDF8" stroke-width="1.5" opacity="0.5"/>
+  <g fill="#38BDF8">
+    <rect x="16" y="34" width="7" height="16" rx="2"/>
+    <rect x="28.5" y="26" width="7" height="24" rx="2"/>
+    <rect x="41" y="18" width="7" height="32" rx="2"/>
+  </g>
+  <circle cx="47" cy="17" r="4.5" fill="#111827"/>
+  <circle cx="47" cy="17" r="3" fill="#F8FAFC"/>
+</svg>
