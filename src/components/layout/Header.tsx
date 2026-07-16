@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import { ThemeToggle } from '../ui/ThemeToggle';
+import { HeaderInstallButton } from '../pwa/HeaderInstallButton';
 
 interface NavLink {
   label: string;
@@ -100,10 +101,12 @@ export const Header: React.FC = () => {
           <Link to="/booking" className="btn-primary py-2 px-5 text-sm">
             Agendar
           </Link>
+          <HeaderInstallButton onDarkSurface={isOverDarkSurface} />
           <ThemeToggle onDarkSurface={isOverDarkSurface} />
         </nav>
 
         <div className="flex items-center md:hidden space-x-4">
+          <HeaderInstallButton onDarkSurface={isOverDarkSurface} />
           <ThemeToggle onDarkSurface={isOverDarkSurface} />
           <button
             type="button"
