@@ -7,17 +7,40 @@ import { useInstallPrompt } from '../../hooks/useInstallPrompt';
  * Installs the admin panel as its own PWA, separate from the public site.
  *
  * The two faces link different manifests (scope `/admin` vs `/`), so a prompt fired here creates
- * a distinct "Luan Admin" home-screen app pointing straight at the panel. Rendered in the admin
- * header; shows only when the browser actually offers a native install.
+ * a distinct "Luan Admin" home-screen app pointing straight at the panel.
+ *
+ * Stays visible whenever the panel is not already installed — NOT only when `beforeinstallprompt`
+ * has fired. That event is unreliable (never on iOS, and Chrome delays it behind an engagement
+ * heuristic), so gating on it made the button vanish. When the native prompt is ready we fire it;
+ * otherwise we explain how to install for that platform.
  */
 export const AdminInstallButton: React.FC = () => {
-  const { canInstall, promptInstall } = useInstallPrompt();
+  const { canInstall, isInstalled, isIOS, promptInstall } = useInstallPrompt();
 
-  if (!canInstall) return null;
+  // Hide only when already running as the installed app.
+  if (isInstalled) return null;
 
   const handleInstall = async () => {
-    const accepted = await promptInstall();
-    if (accepted) toast.success('Painel instalado! Abra pelo ícone na tela inicial.');
+    if (canInstall) {
+      const accepted = await promptInstall();
+      if (accepted) toast.success('Painel instalado! Abra pelo ícone na tela inicial.');
+      return;
+    }
+
+    if (isIOS) {
+      toast('Instale o painel', {
+        description: 'Toque em Compartilhar e depois em “Adicionar à Tela de Início”.',
+        duration: 7000,
+      });
+      return;
+    }
+
+    // Chromium before the prompt is ready, or a browser without programmatic install.
+    toast('Instale o painel', {
+      description:
+        'Abra o menu do navegador (⋮) e escolha “Instalar app” ou “Adicionar à tela inicial”.',
+      duration: 7000,
+    });
   };
 
   return (
