@@ -9,22 +9,43 @@ interface HeaderInstallButtonProps {
 }
 
 /**
- * Icon-only install trigger for the public site's header — the counterpart to
- * AdminInstallButton, styled to match the header's own icon buttons instead of a standalone
- * bordered pill. Renders nothing unless the browser actually offers a native install; the
- * bottom-corner InstallAppBanner remains the primary prompt, this is a persistent fallback for
- * anyone who dismissed it.
+ * Icon-only install trigger for the public header.
+ *
+ * It stays visible whenever the app is not already installed — NOT only when the browser has
+ * fired `beforeinstallprompt`. That event is unreliable (never on iOS, and Chrome delays it behind
+ * an engagement heuristic), so gating the icon on it made it vanish on mobile. When the native
+ * prompt is ready we fire it; otherwise we explain how to install for that platform. The
+ * bottom-corner banner remains the primary prompt; this is the always-there fallback.
  */
 export const HeaderInstallButton: React.FC<HeaderInstallButtonProps> = ({
   onDarkSurface = false,
 }) => {
-  const { canInstall, promptInstall } = useInstallPrompt();
+  const { canInstall, isInstalled, isIOS, promptInstall } = useInstallPrompt();
 
-  if (!canInstall) return null;
+  // Hide only when already running as the installed app.
+  if (isInstalled) return null;
 
   const handleInstall = async () => {
-    const accepted = await promptInstall();
-    if (accepted) toast.success('App instalado! Abra pela tela inicial. 📱');
+    if (canInstall) {
+      const accepted = await promptInstall();
+      if (accepted) toast.success('App instalado! Abra pela tela inicial. 📱');
+      return;
+    }
+
+    if (isIOS) {
+      toast('Instale o app Luan Studio', {
+        description: 'Toque em Compartilhar e depois em “Adicionar à Tela de Início”.',
+        duration: 7000,
+      });
+      return;
+    }
+
+    // Chromium before the prompt is ready, or a browser without programmatic install.
+    toast('Instale o app Luan Studio', {
+      description:
+        'Abra o menu do navegador (⋮) e escolha “Instalar app” ou “Adicionar à tela inicial”.',
+      duration: 7000,
+    });
   };
 
   return (
