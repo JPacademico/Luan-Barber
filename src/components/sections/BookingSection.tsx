@@ -88,9 +88,10 @@ export const BookingSection: React.FC<BookingSectionProps> = ({ flow }) => {
                   <h4 className="font-display font-bold text-lg text-brand-black dark:text-white mb-4">
                     3. Escolha o Horário
                   </h4>
-                  {selectedDate ? (
+                  {selectedDate && selectedService ? (
                     <TimeSlotGrid
                       selectedDate={selectedDate}
+                      selectedService={selectedService}
                       selectedTime={selectedTime}
                       onSelectTime={flow.selectTime}
                     />

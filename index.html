@@ -3,11 +3,20 @@
   <head>
     <meta charset="UTF-8" />
     <!-- id is required: useDocumentMeta swaps this icon per route (public vs. admin branding). -->
-    <link id="app-favicon" rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link id="app-favicon" rel="icon" type="image/svg+xml" href="/logo.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="description" content="Luan Studio Barber - Experiência, Estilo e Atendimento que Fazem a Diferença. Agende seu horário em Aracaju/SE." />
     <meta name="theme-color" content="#0A0A0A" />
     <title>Luan Studio Barber | Experiência, Estilo e Atendimento</title>
+
+    <!-- PWA: installable app manifest + platform install hints.
+         id lets useDocumentMeta swap the manifest per route (public vs. admin install). -->
+    <link id="app-manifest" rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/logo.svg" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Luan Studio" />
 
     <!-- Playfair Display + Inter for the storefront; Plus Jakarta Sans for the admin panel -->
     <link rel="preconnect" href="https://fonts.googleapis.com">

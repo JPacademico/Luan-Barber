@@ -28,6 +28,12 @@ export interface Booking {
   clientEmail: string;
   clientPhone: string;
   serviceId: string;
+  /**
+   * Service length snapshotted at booking time, in minutes. Drives how many consecutive
+   * 30-min slots this booking occupies. Snapshotted (not read live from the service) so that
+   * later price/duration edits never retroactively change an existing booking's footprint.
+   */
+  durationMinutes: number;
   date: string; // ISO format YYYY-MM-DD
   time: string; // HH:mm
   createdAt: string;

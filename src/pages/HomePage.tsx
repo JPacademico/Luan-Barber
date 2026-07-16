@@ -8,9 +8,10 @@ import { useDocumentMeta } from '../hooks/useDocumentMeta';
 import { PUBLIC_BRANDING } from '../constants/branding';
 
 export const HomePage: React.FC = () => {
+  // Spread the whole branding so the manifest reverts to public after visiting /admin in-app.
   useDocumentMeta({
+    ...PUBLIC_BRANDING,
     title: 'Luan Studio Barber | Experiência, Estilo e Atendimento',
-    favicon: PUBLIC_BRANDING.favicon,
   });
 
   return (

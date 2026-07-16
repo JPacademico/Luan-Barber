@@ -1,0 +1,37 @@
+{
+  "name": "Luan Studio Barber",
+  "short_name": "Luan Studio",
+  "description": "Agende seu horário na Luan Studio Barber — Aracaju/SE. Cortes, barba e atendimento premium.",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "id": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0A0A0A",
+  "theme_color": "#0A0A0A",
+  "categories": ["lifestyle", "business"],
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Agendar horário",
+      "short_name": "Agendar",
+      "url": "/booking?source=pwa",
+      "description": "Ir direto para o agendamento"
+    }
+  ]
+}

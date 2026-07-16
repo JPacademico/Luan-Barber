@@ -9,6 +9,7 @@ import {
   CircleDollarSign,
   Inbox,
   Mail,
+  MessageCircle,
   Phone,
   XCircle,
 } from 'lucide-react';
@@ -17,12 +18,19 @@ import { useBookingStore } from '../../store/bookingStore';
 import { useShopStore } from '../../store/shopStore';
 import { DAILY_PURGE_HOUR, timeToMinutes } from '../../lib/timeSlots';
 import { toDateKey } from '../../lib/schedule';
-import { buildMailtoUrl, composeCancellationEmail } from '../../lib/emails';
+import { composeCancellationEmail, dispatchCancellationEmail } from '../../lib/emails';
+import { buildCancellationWhatsAppUrl } from '../../lib/whatsapp';
 import { PaymentStatusBadge } from './PaymentStatusBadge';
 import { CancelAppointmentDialog } from './CancelAppointmentDialog';
 import type { Booking, Service } from '../../types';
 
 const SHOP_NAME = 'Luan Studio Barber';
+
+const EMAIL_CHANNEL_LABEL = {
+  emailjs: 'E-mail enviado ao cliente.',
+  formspree: 'E-mail enviado ao cliente.',
+  mailto: 'Abrimos seu programa de e-mail para enviar.',
+} as const;
 
 interface AppointmentRow {
   booking: Booking;
@@ -98,23 +106,35 @@ export const AppointmentsPanel: React.FC = () => {
     toast.success(`Atendimento de ${booking.clientName} concluído.`);
   };
 
-  /** Opens the admin's mail client with a cancellation notice drafted. Never sends on its own. */
-  const openCancellationEmail = (booking: Booking) => {
+  const serviceFor = (booking: Booking) => services.find((s) => s.id === booking.serviceId);
+
+  /** Opens WhatsApp Click-to-Chat with a stylised cancellation message pre-filled. */
+  const openCancellationWhatsApp = (booking: Booking) => {
+    const url = buildCancellationWhatsAppUrl({
+      booking,
+      service: serviceFor(booking),
+      shopName: SHOP_NAME,
+    });
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  /** Sends the cancellation email via the best available channel (provider or mail client). */
+  const sendCancellationEmail = async (booking: Booking) => {
     const draft = composeCancellationEmail({
       booking,
-      service: services.find((s) => s.id === booking.serviceId),
+      service: serviceFor(booking),
       shopInfo,
       shopName: SHOP_NAME,
     });
-
-    window.location.href = buildMailtoUrl(draft);
+    const result = await dispatchCancellationEmail(draft);
+    toast.success(EMAIL_CHANNEL_LABEL[result.channel]);
   };
 
   const handleCancel = (row: AppointmentRow, reason: string | null) => {
     cancelBooking(row.booking.id, reason);
     setCancelTarget(null);
 
-    // Compose from the post-cancellation booking so the reason reaches the email body.
+    // Compose from the post-cancellation booking so the reason reaches both channels.
     const cancelled: Booking = {
       ...row.booking,
       status: 'cancelled',
@@ -122,13 +142,14 @@ export const AppointmentsPanel: React.FC = () => {
       cancellationReason: reason,
     };
 
+    // Dual-channel: WhatsApp opens now inside the click gesture (popup-safe); email dispatches
+    // in the background (provider) or opens the mail client.
+    openCancellationWhatsApp(cancelled);
+    void sendCancellationEmail(cancelled);
+
     toast.success(`Agendamento de ${row.booking.clientName} cancelado.`, {
-      description: 'O horário foi liberado. Avise o cliente se achar necessário.',
-      action: {
-        label: 'Avisar por e-mail',
-        onClick: () => openCancellationEmail(cancelled),
-      },
-      duration: 8000,
+      description: 'Horário liberado. Cliente avisado por WhatsApp e e-mail.',
+      duration: 7000,
     });
   };
 
@@ -266,7 +287,8 @@ export const AppointmentsPanel: React.FC = () => {
                           onVerify={() => handleVerifyPayment(booking)}
                           onComplete={() => handleComplete(booking)}
                           onCancel={() => setCancelTarget({ booking, service })}
-                          onEmailClient={() => openCancellationEmail(booking)}
+                          onWhatsApp={() => openCancellationWhatsApp(booking)}
+                          onEmailClient={() => void sendCancellationEmail(booking)}
                         />
                       </div>
                     </td>
@@ -313,7 +335,8 @@ export const AppointmentsPanel: React.FC = () => {
                     onVerify={() => handleVerifyPayment(booking)}
                     onComplete={() => handleComplete(booking)}
                     onCancel={() => setCancelTarget({ booking, service })}
-                    onEmailClient={() => openCancellationEmail(booking)}
+                    onWhatsApp={() => openCancellationWhatsApp(booking)}
+                    onEmailClient={() => void sendCancellationEmail(booking)}
                   />
                 </div>
               </article>
@@ -382,6 +405,7 @@ interface AppointmentActionsProps {
   onVerify: () => void;
   onComplete: () => void;
   onCancel: () => void;
+  onWhatsApp: () => void;
   onEmailClient: () => void;
 }
 
@@ -390,6 +414,7 @@ const AppointmentActions: React.FC<AppointmentActionsProps> = ({
   onVerify,
   onComplete,
   onCancel,
+  onWhatsApp,
   onEmailClient,
 }) => {
   if (booking.status === 'completed') {
@@ -400,7 +425,7 @@ const AppointmentActions: React.FC<AppointmentActionsProps> = ({
     );
   }
 
-  // A cancelled booking is done, but notifying the client stays available on demand.
+  // A cancelled booking is done, but re-notifying the client stays available on both channels.
   if (booking.status === 'cancelled') {
     return (
       <>
@@ -410,11 +435,20 @@ const AppointmentActions: React.FC<AppointmentActionsProps> = ({
 
         <button
           type="button"
+          onClick={onWhatsApp}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-700 text-slate-400 hover:border-emerald-500/50 hover:text-emerald-400 transition-colors whitespace-nowrap"
+          title={`Avisar ${booking.clientPhone} no WhatsApp`}
+        >
+          <MessageCircle size={13} /> WhatsApp
+        </button>
+
+        <button
+          type="button"
           onClick={onEmailClient}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-700 text-slate-400 hover:border-sky-500/50 hover:text-sky-400 transition-colors whitespace-nowrap"
-          title={`Abrir e-mail para ${booking.clientEmail}`}
+          title={`Enviar e-mail para ${booking.clientEmail}`}
         >
-          <Mail size={13} /> Avisar cliente
+          <Mail size={13} /> E-mail
         </button>
       </>
     );

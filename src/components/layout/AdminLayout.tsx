@@ -2,6 +2,7 @@ import React from 'react';
 import { Outlet, Link } from 'react-router-dom';
 import { ArrowLeft, LogOut } from 'lucide-react';
 import { AdminToaster } from '../ui/BrandToaster';
+import { AdminInstallButton } from '../pwa/AdminInstallButton';
 import { useDocumentMeta } from '../../hooks/useDocumentMeta';
 import { ADMIN_BRANDING } from '../../constants/branding';
 
@@ -41,14 +42,18 @@ export const AdminLayout: React.FC = () => {
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={handleLogout}
-          className="flex items-center space-x-2 text-sm font-medium text-slate-400 hover:text-red-400 transition-colors"
-        >
-          <span className="hidden sm:inline">Sair</span>
-          <LogOut size={18} />
-        </button>
+        <div className="flex items-center gap-3">
+          <AdminInstallButton />
+
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="flex items-center space-x-2 text-sm font-medium text-slate-400 hover:text-red-400 transition-colors"
+          >
+            <span className="hidden sm:inline">Sair</span>
+            <LogOut size={18} />
+          </button>
+        </div>
       </header>
 
       <main className="flex-grow p-4 md:p-8 max-w-7xl mx-auto w-full">

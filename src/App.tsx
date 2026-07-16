@@ -4,8 +4,10 @@ import { PublicLayout } from './components/layout/PublicLayout';
 import { AdminLayout } from './components/layout/AdminLayout';
 import { HomePage } from './pages/HomePage';
 import { RouteFallback } from './components/ui/RouteFallback';
+import { InstallAppBanner } from './components/pwa/InstallAppBanner';
 import { useAutoArchive } from './hooks/useAutoArchive';
 import { useCrossTabSync } from './hooks/useCrossTabSync';
+import { useBookingSync } from './hooks/useBookingSync';
 import { useApplyTheme } from './hooks/useApplyTheme';
 
 /**
@@ -21,24 +23,31 @@ const AdminPage = lazy(() => import('./pages/AdminPage').then((m) => ({ default:
 function App() {
   // Owns the `dark` class on <html> for every route, admin included.
   useApplyTheme();
+  // Loads bookings from the cloud/local repository and keeps every device/tab in sync.
+  useBookingSync();
   // Bookings are archived against the 22:00 cut-off for as long as the app stays open.
   useAutoArchive();
-  // Without this, an already-open /admin tab never sees bookings taken on the public site.
+  // Keeps shop configuration (services, prices, hours) in sync across tabs.
   useCrossTabSync();
 
   return (
-    <Suspense fallback={<RouteFallback />}>
-      <Routes>
-        <Route element={<PublicLayout />}>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/booking" element={<BookingPage />} />
-        </Route>
+    <>
+      <Suspense fallback={<RouteFallback />}>
+        <Routes>
+          <Route element={<PublicLayout />}>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/booking" element={<BookingPage />} />
+          </Route>
 
-        <Route path="/admin" element={<AdminLayout />}>
-          <Route index element={<AdminPage />} />
-        </Route>
-      </Routes>
-    </Suspense>
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<AdminPage />} />
+          </Route>
+        </Routes>
+      </Suspense>
+
+      {/* App-wide install prompt; renders itself only when the browser offers installation. */}
+      <InstallAppBanner />
+    </>
   );
 }
 

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Painel Administrativo Luan Studio">
+  <!-- Full-bleed so the icon survives any mask; content kept inside the safe zone. -->
+  <rect width="512" height="512" fill="#111827"/>
+  <g transform="translate(256 256) scale(0.72) translate(-256 -256)">
+    <g fill="#38BDF8">
+      <rect x="128" y="272" width="56" height="128" rx="16"/>
+      <rect x="228" y="208" width="56" height="192" rx="16"/>
+      <rect x="328" y="144" width="56" height="256" rx="16"/>
+    </g>
+    <circle cx="376" cy="136" r="36" fill="#111827"/>
+    <circle cx="376" cy="136" r="24" fill="#F8FAFC"/>
+  </g>
+</svg>

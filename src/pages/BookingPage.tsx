@@ -11,8 +11,8 @@ export const BookingPage: React.FC = () => {
   const { selectService } = flow;
 
   useDocumentMeta({
+    ...PUBLIC_BRANDING,
     title: 'Agendamento e Preços | Luan Studio Barber',
-    favicon: PUBLIC_BRANDING.favicon,
   });
 
   // Picking from the catalogue seeds step 1 of the checkout, so the client lands mid-flow.

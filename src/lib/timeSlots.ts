@@ -46,3 +46,63 @@ export const isSlotInPast = (slot: string, referenceDate: Date = new Date()): bo
   const nowMinutes = referenceDate.getHours() * 60 + referenceDate.getMinutes();
   return timeToMinutes(slot) <= nowMinutes;
 };
+
+// --- Duration-aware blocking -------------------------------------------------------------------
+
+/**
+ * How many consecutive 30-min slots a service consumes.
+ * A 60-min service needs 2 slots, a 90-min service 3, a 45-min service (rounded up) 2.
+ */
+export const slotsRequired = (durationMinutes: number): number =>
+  Math.max(1, Math.ceil(durationMinutes / SLOT_INTERVAL_MINUTES));
+
+/**
+ * The exact 30-min slot markers a booking occupies. A 60-min service at 13:30 returns
+ * ["13:30", "14:00"], so the next free start for anyone else is 14:30.
+ */
+export const occupiedSlotsFor = (startTime: string, durationMinutes: number): string[] => {
+  const start = timeToMinutes(startTime);
+  return Array.from({ length: slotsRequired(durationMinutes) }, (_, i) =>
+    minutesToTime(start + i * SLOT_INTERVAL_MINUTES)
+  );
+};
+
+interface RangeAvailabilityArgs {
+  startTime: string;
+  durationMinutes: number;
+  workingHours: ShopInfo['workingHours'];
+  /** 30-min slot markers already taken by existing (non-cancelled) bookings that day. */
+  occupied: Set<string>;
+  /** True only for the day currently being viewed if it is today. */
+  isToday: boolean;
+  now?: Date;
+}
+
+/**
+ * Can a service of the given duration START at `startTime`?
+ *
+ * It fits only when every slot it would consume (a) ends by closing time, (b) is free of any
+ * existing booking, and (c) is not already in the past. This is what disables 16:30 for a
+ * 90-min service when 17:30 is booked, or when the shop closes at 18:00.
+ */
+export const isRangeAvailable = ({
+  startTime,
+  durationMinutes,
+  workingHours,
+  occupied,
+  isToday,
+  now = new Date(),
+}: RangeAvailabilityArgs): boolean => {
+  const slots = occupiedSlotsFor(startTime, durationMinutes);
+  const lastSlotStart = timeToMinutes(slots[slots.length - 1]);
+
+  // The final slot must finish within the working window.
+  if (lastSlotStart + SLOT_INTERVAL_MINUTES > workingHours.end * 60) return false;
+
+  for (const slot of slots) {
+    if (occupied.has(slot)) return false;
+    if (isToday && isSlotInPast(slot, now)) return false;
+  }
+
+  return true;
+};

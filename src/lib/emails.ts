@@ -1,13 +1,21 @@
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { Booking, Service, ShopInfo } from '../types';
+import {
+  EMAILJS_PUBLIC_KEY,
+  EMAILJS_SERVICE_ID,
+  EMAILJS_TEMPLATE_ID,
+  FORMSPREE_ENDPOINT,
+  IS_EMAILJS_ENABLED,
+  IS_FORMSPREE_ENABLED,
+} from './env';
 
 /**
- * Cancellation notice composition.
+ * Cancellation email: composition plus a best-effort client-side send.
  *
- * Sending is deliberately manual: the app has no backend, and the admin decides case by case
- * whether an email is even warranted (often the client is told by WhatsApp instead). This module
- * only drafts the text; `buildMailtoUrl` hands it to the admin's own mail client on request.
+ * With no backend, "sending" means one of three channels, tried in order of how automatic they
+ * are: EmailJS → Formspree → the admin's own mail client (mailto). The first two dispatch without
+ * the admin leaving the app when their keys are configured; the mailto fallback always works.
  */
 
 interface EmailContext {
@@ -66,3 +74,61 @@ export const buildMailtoUrl = ({ to, subject, body }: DraftedEmail): string =>
   `mailto:${encodeURIComponent(to)}` +
   `?subject=${encodeURIComponent(subject)}` +
   `&body=${encodeURIComponent(body)}`;
+
+/** Which channel actually handled the email. `mailto` means the admin's mail client was opened. */
+export type EmailChannel = 'emailjs' | 'formspree' | 'mailto';
+
+export interface EmailDispatchResult {
+  channel: EmailChannel;
+  ok: boolean;
+}
+
+const sendViaEmailJS = async (draft: DraftedEmail): Promise<boolean> => {
+  const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      service_id: EMAILJS_SERVICE_ID,
+      template_id: EMAILJS_TEMPLATE_ID,
+      user_id: EMAILJS_PUBLIC_KEY,
+      template_params: { to_email: draft.to, subject: draft.subject, message: draft.body },
+    }),
+  });
+  return response.ok;
+};
+
+const sendViaFormspree = async (draft: DraftedEmail): Promise<boolean> => {
+  const response = await fetch(FORMSPREE_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({ email: draft.to, _subject: draft.subject, message: draft.body }),
+  });
+  return response.ok;
+};
+
+/**
+ * Best-effort send. Tries a configured provider first; on any failure (or none configured) falls
+ * back to opening the admin's mail client, which is guaranteed to work. Never throws.
+ */
+export const dispatchCancellationEmail = async (
+  draft: DraftedEmail
+): Promise<EmailDispatchResult> => {
+  if (IS_EMAILJS_ENABLED) {
+    try {
+      if (await sendViaEmailJS(draft)) return { channel: 'emailjs', ok: true };
+    } catch {
+      // fall through to the next channel
+    }
+  }
+
+  if (IS_FORMSPREE_ENABLED) {
+    try {
+      if (await sendViaFormspree(draft)) return { channel: 'formspree', ok: true };
+    } catch {
+      // fall through to mailto
+    }
+  }
+
+  window.open(buildMailtoUrl(draft), '_blank');
+  return { channel: 'mailto', ok: true };
+};
