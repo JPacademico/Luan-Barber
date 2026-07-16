@@ -8,7 +8,9 @@
 
 const read = (value: string | undefined): string => (value ?? '').trim();
 
-export const SUPABASE_URL = read(import.meta.env.VITE_SUPABASE_URL);
+// Strip trailing slashes: a pasted "https://x.supabase.co/" would otherwise produce a broken
+// "https://x.supabase.co//rest/v1" and every request would 404.
+export const SUPABASE_URL = read(import.meta.env.VITE_SUPABASE_URL).replace(/\/+$/, '');
 export const SUPABASE_ANON_KEY = read(import.meta.env.VITE_SUPABASE_ANON_KEY);
 
 /**

@@ -56,10 +56,20 @@ create table if not exists public.day_overrides (
 alter table public.bookings      enable row level security;
 alter table public.day_overrides enable row level security;
 
+-- RLS decides row visibility, but the anon role also needs table-level privileges. Supabase
+-- normally grants these to new public tables by default; granting explicitly removes all doubt.
+grant usage on schema public to anon, authenticated;
+grant select, insert, update, delete on public.bookings      to anon, authenticated;
+grant select, insert, update, delete on public.day_overrides to anon, authenticated;
+
+-- Policies are recreated idempotently so re-running this file never errors on "already exists".
+drop policy if exists "demo_public_bookings"  on public.bookings;
+drop policy if exists "demo_public_overrides" on public.day_overrides;
+
 create policy "demo_public_bookings"  on public.bookings
-  for all using (true) with check (true);
+  for all to anon, authenticated using (true) with check (true);
 create policy "demo_public_overrides" on public.day_overrides
-  for all using (true) with check (true);
+  for all to anon, authenticated using (true) with check (true);
 
 -- ------------------------------------------------------------------------------------------------
 -- Yearly retention: drop last year's history so the log resets each January (the client already

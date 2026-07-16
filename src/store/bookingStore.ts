@@ -105,16 +105,29 @@ export const useBookingStore = create<BookingState>()((set, get) => {
   /** Recompute the derived view from a new source list. */
   const commitAll = (all: Booking[]) => set(deriveView(all, new Date()));
 
+  /** Fire-and-forget persistence with visible failure. Clears a prior error once a write lands. */
+  const persistWrite = (write: Promise<void>) => {
+    write
+      .then(() => {
+        if (get().lastError) set({ lastError: null });
+      })
+      .catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : String(error);
+        // Surfaced (not swallowed) so a misconfigured backend is diagnosable, not just "gone".
+        console.error('[Luan] Falha ao salvar no Supabase:', message);
+        set({ lastError: message });
+        void get().refresh();
+      });
+  };
+
   /**
    * Optimistic write: update memory immediately, then persist. If the backend rejects, re-pull
-   * the truth so the UI can't drift from the database.
+   * the truth so the UI can't drift from the database (the optimistic row disappears, and the
+   * error becomes visible via `lastError`).
    */
   const optimistic = (nextAll: Booking[], persist: () => Promise<void>) => {
     commitAll(nextAll);
-    persist().catch((error: unknown) => {
-      set({ lastError: error instanceof Error ? error.message : String(error) });
-      void get().refresh();
-    });
+    persistWrite(persist());
   };
 
   const mapBooking = (id: string, patch: Partial<Booking>) =>
@@ -131,6 +144,9 @@ export const useBookingStore = create<BookingState>()((set, get) => {
 
     hydrate: async () => {
       if (get().status === 'loading') return;
+      console.info(
+        `[Luan] Persistência de agendamentos: ${repo.isCloud ? 'NUVEM (Supabase)' : 'LOCAL (somente este aparelho)'}`
+      );
       set({ status: 'loading', lastError: null });
       try {
         const { bookings, overrides } = await repo.load();
@@ -147,10 +163,9 @@ export const useBookingStore = create<BookingState>()((set, get) => {
           });
         }
       } catch (error: unknown) {
-        set({
-          status: 'error',
-          lastError: error instanceof Error ? error.message : String(error),
-        });
+        const message = error instanceof Error ? error.message : String(error);
+        console.error('[Luan] Falha ao carregar do Supabase:', message);
+        set({ status: 'error', lastError: message });
       }
     },
 
@@ -163,7 +178,9 @@ export const useBookingStore = create<BookingState>()((set, get) => {
           status: 'ready',
         });
       } catch (error: unknown) {
-        set({ lastError: error instanceof Error ? error.message : String(error) });
+        const message = error instanceof Error ? error.message : String(error);
+        console.error('[Luan] Falha ao sincronizar com o Supabase:', message);
+        set({ lastError: message });
       }
     },
 
@@ -207,7 +224,7 @@ export const useBookingStore = create<BookingState>()((set, get) => {
     closeDay: (date) => {
       const override = createOverride(date, { isClosed: true });
       set((state) => ({ dayOverrides: { ...state.dayOverrides, [date]: override } }));
-      repo.upsertOverride(override).catch(() => void get().refresh());
+      persistWrite(repo.upsertOverride(override));
     },
 
     resetDay: (date) => {
@@ -215,7 +232,7 @@ export const useBookingStore = create<BookingState>()((set, get) => {
         const { [date]: _removed, ...rest } = state.dayOverrides;
         return { dayOverrides: rest };
       });
-      repo.deleteOverride(date).catch(() => void get().refresh());
+      persistWrite(repo.deleteOverride(date));
     },
 
     setDayHours: (date, startHour, endHour) => {
@@ -227,7 +244,7 @@ export const useBookingStore = create<BookingState>()((set, get) => {
       }
 
       set((state) => ({ dayOverrides: { ...state.dayOverrides, [date]: override } }));
-      repo.upsertOverride(override).catch(() => void get().refresh());
+      persistWrite(repo.upsertOverride(override));
     },
 
     isDateClosed: (date) => get().dayOverrides[date]?.isClosed ?? false,

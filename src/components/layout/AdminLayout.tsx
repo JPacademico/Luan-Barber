@@ -3,6 +3,7 @@ import { Outlet, Link } from 'react-router-dom';
 import { ArrowLeft, LogOut } from 'lucide-react';
 import { AdminToaster } from '../ui/BrandToaster';
 import { AdminInstallButton } from '../pwa/AdminInstallButton';
+import { SyncStatusBadge } from '../admin/SyncStatusBadge';
 import { useDocumentMeta } from '../../hooks/useDocumentMeta';
 import { ADMIN_BRANDING } from '../../constants/branding';
 
@@ -43,6 +44,7 @@ export const AdminLayout: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3">
+          <SyncStatusBadge />
           <AdminInstallButton />
 
           <button
