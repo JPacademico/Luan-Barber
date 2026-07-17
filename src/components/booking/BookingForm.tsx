@@ -8,12 +8,9 @@ import { useBookingStore } from '../../store/bookingStore';
 import { useShopStore } from '../../store/shopStore';
 import { isRangeAvailable } from '../../lib/timeSlots';
 import { resolveWorkingHours } from '../../lib/schedule';
-import { buildBookingNotificationWhatsAppUrl } from '../../lib/whatsapp';
 import type { Booking, PaymentMethod, Service } from '../../types';
 import { PaymentMethodSelector } from './PaymentMethodSelector';
 import { PixPaymentModal } from './PixPaymentModal';
-
-const SHOP_NAME = 'Luan Studio Barber';
 
 interface BookingFormProps {
   selectedService: Service | null;
@@ -30,8 +27,6 @@ interface PendingPixPayment {
   amount: number;
   serviceName: string;
   scheduledFor: string;
-  /** wa.me link that notifies the shop; fired once the Pix flow ends. */
-  adminNotifyUrl: string;
 }
 
 export const BookingForm: React.FC<BookingFormProps> = ({
@@ -48,11 +43,6 @@ export const BookingForm: React.FC<BookingFormProps> = ({
   const getDayOverride = useBookingStore((state) => state.getDayOverride);
   const shopInfo = useShopStore((state) => state.shopInfo);
   const [pendingPixPayment, setPendingPixPayment] = useState<PendingPixPayment | null>(null);
-
-  /** Opens WhatsApp to the shop (admin) with the booking details, if a number is configured. */
-  const notifyShop = (url: string) => {
-    if (shopInfo.whatsapp) window.open(url, '_blank', 'noopener,noreferrer');
-  };
 
   const {
     register,
@@ -113,31 +103,22 @@ export const BookingForm: React.FC<BookingFormProps> = ({
     addBooking(newBooking);
     reset();
 
-    // Notifies the shop (admin) on WhatsApp — the shop number IS the admin's.
-    const adminNotifyUrl = buildBookingNotificationWhatsAppUrl({
-      booking: newBooking,
-      service: selectedService,
-      shopName: SHOP_NAME,
-      adminWhatsapp: shopInfo.whatsapp,
-    });
-
+    // The shop (admin) is notified automatically by the backend the moment the booking is
+    // created — the browser no longer opens WhatsApp on submit.
     if (paymentMethod === 'pix') {
       // The slot is already reserved; the modal only collects the (simulated) payment claim.
-      // The shop is notified when the Pix flow ends, to avoid stealing focus mid-payment.
       setPendingPixPayment({
         bookingId: newBooking.id,
         amount: selectedService.price,
         serviceName: selectedService.name,
         scheduledFor,
-        adminNotifyUrl,
       });
       return;
     }
 
     toast.success('Agendamento realizado com sucesso!', {
-      description: `${selectedService.name} em ${scheduledFor}. Confirme pelo WhatsApp que abriu.`,
+      description: `${selectedService.name} em ${scheduledFor}.`,
     });
-    notifyShop(adminNotifyUrl);
     onSuccess();
   };
 
@@ -145,7 +126,6 @@ export const BookingForm: React.FC<BookingFormProps> = ({
     if (!pendingPixPayment) return;
 
     claimPixPayment(pendingPixPayment.bookingId);
-    notifyShop(pendingPixPayment.adminNotifyUrl);
     setPendingPixPayment(null);
 
     toast.success('Agendamento confirmado!', {
@@ -155,7 +135,6 @@ export const BookingForm: React.FC<BookingFormProps> = ({
   };
 
   const handlePixModalClose = () => {
-    if (pendingPixPayment) notifyShop(pendingPixPayment.adminNotifyUrl);
     setPendingPixPayment(null);
 
     toast.info('Agendamento reservado sem pagamento antecipado.', {

@@ -12,14 +12,6 @@ interface ImportMetaEnv {
   /** Supabase anon/public key. Safe to ship; protected by Row Level Security. */
   readonly VITE_SUPABASE_ANON_KEY?: string;
 
-  /** EmailJS credentials for client-side cancellation emails. */
-  readonly VITE_EMAILJS_SERVICE_ID?: string;
-  readonly VITE_EMAILJS_TEMPLATE_ID?: string;
-  readonly VITE_EMAILJS_PUBLIC_KEY?: string;
-
-  /** Formspree form endpoint — an alternative to EmailJS for cancellation emails. */
-  readonly VITE_FORMSPREE_ENDPOINT?: string;
-
   /**
    * Base URL of the backend (Supabase Edge Functions). Empty = backend not deployed yet; the
    * app keeps its current simulated Pix / client-side notification behaviour. See BACKEND_PLAN.md.

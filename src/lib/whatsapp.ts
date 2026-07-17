@@ -62,47 +62,5 @@ export const buildCancellationWhatsAppUrl = (context: CancellationContext): stri
   return `https://wa.me/${number}?text=${text}`;
 };
 
-interface BookingNotificationContext {
-  booking: Booking;
-  service: Service | undefined;
-  shopName: string;
-  /** The shop's WhatsApp number, which is the admin's — the message is addressed here. */
-  adminWhatsapp: string;
-}
-
-const formatPrice = (price: number | undefined): string =>
-  price === undefined ? 'a combinar' : `R$ ${price.toFixed(2).replace('.', ',')}`;
-
-/**
- * Notifies the barbershop (admin) that a booking was just made.
- *
- * A frontend cannot send WhatsApp silently — that needs the WhatsApp Business API and a backend.
- * The realistic client-side path is Click-to-Chat: this opens a chat addressed to the admin's
- * number with the booking details pre-filled, written from the CLIENT's point of view so it reads
- * naturally for the person who taps "send". The admin then receives it on their WhatsApp.
- */
-export const buildBookingNotificationWhatsAppUrl = ({
-  booking,
-  service,
-  shopName,
-  adminWhatsapp,
-}: BookingNotificationContext): string => {
-  const prettyDate = format(parseISO(booking.date), 'dd/MM/yyyy');
-  const payment = booking.paymentMethod === 'pix' ? 'Pix antecipado' : 'Na barbearia';
-
-  const lines = [
-    `Olá, ${shopName}! ✅`,
-    `Acabei de agendar um horário pelo site:`,
-    ``,
-    `👤 Nome: ${booking.clientName}`,
-    `✂️ Serviço: ${service?.name ?? 'Serviço'}`,
-    `📅 Data: ${prettyDate} às ${booking.time}`,
-    `💳 Pagamento: ${payment}`,
-    `💰 Valor: ${formatPrice(service?.price)}`,
-    ``,
-    `Podem confirmar, por favor? Obrigado! 🙏`,
-  ];
-
-  const number = toWhatsAppNumber(adminWhatsapp);
-  return `https://wa.me/${number}?text=${encodeURIComponent(lines.join('\n'))}`;
-};
+// The new-booking → admin notification is now handled automatically by the backend
+// (database-triggered), so the client-side wa.me builder for it was removed.

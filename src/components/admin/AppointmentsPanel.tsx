@@ -8,7 +8,6 @@ import {
   ChevronRight,
   CircleDollarSign,
   Inbox,
-  Mail,
   MessageCircle,
   Phone,
   XCircle,
@@ -18,19 +17,12 @@ import { useBookingStore } from '../../store/bookingStore';
 import { useShopStore } from '../../store/shopStore';
 import { DAILY_PURGE_HOUR, timeToMinutes } from '../../lib/timeSlots';
 import { toDateKey } from '../../lib/schedule';
-import { composeCancellationEmail, dispatchCancellationEmail } from '../../lib/emails';
 import { buildCancellationWhatsAppUrl } from '../../lib/whatsapp';
 import { PaymentStatusBadge } from './PaymentStatusBadge';
 import { CancelAppointmentDialog } from './CancelAppointmentDialog';
 import type { Booking, Service } from '../../types';
 
 const SHOP_NAME = 'Luan Studio Barber';
-
-const EMAIL_CHANNEL_LABEL = {
-  emailjs: 'E-mail enviado ao cliente.',
-  formspree: 'E-mail enviado ao cliente.',
-  mailto: 'Abrimos seu programa de e-mail para enviar.',
-} as const;
 
 interface AppointmentRow {
   booking: Booking;
@@ -48,7 +40,6 @@ export const AppointmentsPanel: React.FC = () => {
   const markAsCompleted = useBookingStore((state) => state.markAsCompleted);
   const cancelBooking = useBookingStore((state) => state.cancelBooking);
   const services = useShopStore((state) => state.services);
-  const shopInfo = useShopStore((state) => state.shopInfo);
 
   const [cancelTarget, setCancelTarget] = useState<AppointmentRow | null>(null);
 
@@ -108,7 +99,11 @@ export const AppointmentsPanel: React.FC = () => {
 
   const serviceFor = (booking: Booking) => services.find((s) => s.id === booking.serviceId);
 
-  /** Opens WhatsApp Click-to-Chat with a stylised cancellation message pre-filled. */
+  /**
+   * Opens WhatsApp Click-to-Chat with a stylised cancellation message pre-filled.
+   * Manual only: triggered by the button on a cancelled row, never automatically — the client's
+   * cancellation e-mail is sent by the backend the moment the booking flips to `cancelled`.
+   */
   const openCancellationWhatsApp = (booking: Booking) => {
     const url = buildCancellationWhatsAppUrl({
       booking,
@@ -118,37 +113,14 @@ export const AppointmentsPanel: React.FC = () => {
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
-  /** Sends the cancellation email via the best available channel (provider or mail client). */
-  const sendCancellationEmail = async (booking: Booking) => {
-    const draft = composeCancellationEmail({
-      booking,
-      service: serviceFor(booking),
-      shopInfo,
-      shopName: SHOP_NAME,
-    });
-    const result = await dispatchCancellationEmail(draft);
-    toast.success(EMAIL_CHANNEL_LABEL[result.channel]);
-  };
-
   const handleCancel = (row: AppointmentRow, reason: string | null) => {
     cancelBooking(row.booking.id, reason);
     setCancelTarget(null);
 
-    // Compose from the post-cancellation booking so the reason reaches both channels.
-    const cancelled: Booking = {
-      ...row.booking,
-      status: 'cancelled',
-      cancelledAt: new Date().toISOString(),
-      cancellationReason: reason,
-    };
-
-    // Dual-channel: WhatsApp opens now inside the click gesture (popup-safe); email dispatches
-    // in the background (provider) or opens the mail client.
-    openCancellationWhatsApp(cancelled);
-    void sendCancellationEmail(cancelled);
-
+    // The client's cancellation e-mail is dispatched automatically by the backend on the status
+    // change; the browser no longer sends anything. WhatsApp stays a manual choice (button below).
     toast.success(`Agendamento de ${row.booking.clientName} cancelado.`, {
-      description: 'Horário liberado. Cliente avisado por WhatsApp e e-mail.',
+      description: 'Horário liberado. O cliente será avisado por e-mail automaticamente.',
       duration: 7000,
     });
   };
@@ -288,7 +260,6 @@ export const AppointmentsPanel: React.FC = () => {
                           onComplete={() => handleComplete(booking)}
                           onCancel={() => setCancelTarget({ booking, service })}
                           onWhatsApp={() => openCancellationWhatsApp(booking)}
-                          onEmailClient={() => void sendCancellationEmail(booking)}
                         />
                       </div>
                     </td>
@@ -336,7 +307,6 @@ export const AppointmentsPanel: React.FC = () => {
                     onComplete={() => handleComplete(booking)}
                     onCancel={() => setCancelTarget({ booking, service })}
                     onWhatsApp={() => openCancellationWhatsApp(booking)}
-                    onEmailClient={() => void sendCancellationEmail(booking)}
                   />
                 </div>
               </article>
@@ -406,7 +376,6 @@ interface AppointmentActionsProps {
   onComplete: () => void;
   onCancel: () => void;
   onWhatsApp: () => void;
-  onEmailClient: () => void;
 }
 
 const AppointmentActions: React.FC<AppointmentActionsProps> = ({
@@ -415,7 +384,6 @@ const AppointmentActions: React.FC<AppointmentActionsProps> = ({
   onComplete,
   onCancel,
   onWhatsApp,
-  onEmailClient,
 }) => {
   if (booking.status === 'completed') {
     return (
@@ -425,7 +393,8 @@ const AppointmentActions: React.FC<AppointmentActionsProps> = ({
     );
   }
 
-  // A cancelled booking is done, but re-notifying the client stays available on both channels.
+  // A cancelled booking is done. The client's e-mail went out automatically (backend); the
+  // WhatsApp button is an optional, manual extra nudge.
   if (booking.status === 'cancelled') {
     return (
       <>
@@ -440,15 +409,6 @@ const AppointmentActions: React.FC<AppointmentActionsProps> = ({
           title={`Avisar ${booking.clientPhone} no WhatsApp`}
         >
           <MessageCircle size={13} /> WhatsApp
-        </button>
-
-        <button
-          type="button"
-          onClick={onEmailClient}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-700 text-slate-400 hover:border-sky-500/50 hover:text-sky-400 transition-colors whitespace-nowrap"
-          title={`Enviar e-mail para ${booking.clientEmail}`}
-        >
-          <Mail size={13} /> E-mail
         </button>
       </>
     );

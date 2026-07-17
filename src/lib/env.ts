@@ -40,17 +40,8 @@ export const SUPABASE_ANON_KEY = read(import.meta.env.VITE_SUPABASE_ANON_KEY);
  */
 export const IS_CLOUD_ENABLED = SUPABASE_URL !== '' && SUPABASE_ANON_KEY !== '';
 
-/** EmailJS credentials for the client-side cancellation email. All three are required. */
-export const EMAILJS_SERVICE_ID = read(import.meta.env.VITE_EMAILJS_SERVICE_ID);
-export const EMAILJS_TEMPLATE_ID = read(import.meta.env.VITE_EMAILJS_TEMPLATE_ID);
-export const EMAILJS_PUBLIC_KEY = read(import.meta.env.VITE_EMAILJS_PUBLIC_KEY);
-
-export const IS_EMAILJS_ENABLED =
-  EMAILJS_SERVICE_ID !== '' && EMAILJS_TEMPLATE_ID !== '' && EMAILJS_PUBLIC_KEY !== '';
-
-/** Formspree endpoint (`https://formspree.io/f/xxxx`) — an alternative to EmailJS. */
-export const FORMSPREE_ENDPOINT = read(import.meta.env.VITE_FORMSPREE_ENDPOINT);
-export const IS_FORMSPREE_ENABLED = FORMSPREE_ENDPOINT !== '';
+// Cancellation e-mails are now sent by the backend (database-triggered), so the client-side
+// EmailJS / Formspree plumbing was removed.
 
 /**
  * Backend (Supabase Edge Functions) base URL. The single switch the future backend flips:
