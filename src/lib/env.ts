@@ -51,3 +51,11 @@ export const IS_EMAILJS_ENABLED =
 /** Formspree endpoint (`https://formspree.io/f/xxxx`) — an alternative to EmailJS. */
 export const FORMSPREE_ENDPOINT = read(import.meta.env.VITE_FORMSPREE_ENDPOINT);
 export const IS_FORMSPREE_ENABLED = FORMSPREE_ENDPOINT !== '';
+
+/**
+ * Backend (Supabase Edge Functions) base URL. The single switch the future backend flips:
+ * while empty, the app keeps its simulated Pix flow and client-side notification links; once
+ * set, features migrate to real server endpoints one by one. See BACKEND_PLAN.md §2.2.
+ */
+export const API_BASE_URL = toOrigin(import.meta.env.VITE_API_BASE_URL);
+export const IS_BACKEND_ENABLED = API_BASE_URL !== '';

@@ -66,7 +66,7 @@ export const useShopStore = create<ShopState>()(
     }),
     {
       name: SHOP_STORAGE_KEY,
-      version: 3,
+      version: 4,
       migrate: (persistedState, version) => {
         const state = persistedState as Partial<ShopState>;
 
@@ -91,10 +91,13 @@ export const useShopStore = create<ShopState>()(
           ...state,
           shopInfo,
           // v3 added the client counter; without a backfill the About section renders "undefined+".
+          // v4 replaced the Unsplash placeholder portrait with the real /owner.jpg — a persisted
+          // old URL would keep showing the stranger, so the portrait resets to the default.
           owner: {
             ...DEFAULT_OWNER,
             ...state.owner,
             clientsServed: state.owner?.clientsServed ?? DEFAULT_OWNER.clientsServed,
+            imageUrl: version >= 4 ? state.owner?.imageUrl ?? DEFAULT_OWNER.imageUrl : DEFAULT_OWNER.imageUrl,
           },
         } as ShopState;
       },

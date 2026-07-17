@@ -49,7 +49,9 @@ export const DEFAULT_OWNER: OwnerProfile = {
   bio: 'Especialista em visagismo e cortes clássicos/modernos, com experiência e paixão pela barbearia desde 2015. Nosso objetivo é proporcionar uma experiência única, elevando a autoestima e confiança de cada cliente.',
   since: 2015,
   clientsServed: 190,
-  imageUrl: 'https://images.unsplash.com/photo-1599351431202-1e0f0137899a?q=80&w=600&auto=format&fit=crop', // Placeholder barber image
+  // Real photo of Luan, served from /public. Drop the file in as public/owner.jpg;
+  // OwnerSection falls back to a neutral placeholder while the file is absent.
+  imageUrl: '/owner.jpg',
   certificates: [
     { id: 'c1', title: 'Visagismo Básico', year: 2016, imageUrl: 'https://images.unsplash.com/photo-1589330694653-ded6df03f754?q=80&w=400&auto=format&fit=crop' },
     { id: 'c2', title: 'Master Class Cortes Fades', year: 2018, imageUrl: 'https://images.unsplash.com/photo-1589330694653-ded6df03f754?q=80&w=400&auto=format&fit=crop' },

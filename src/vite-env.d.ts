@@ -19,6 +19,12 @@ interface ImportMetaEnv {
 
   /** Formspree form endpoint — an alternative to EmailJS for cancellation emails. */
   readonly VITE_FORMSPREE_ENDPOINT?: string;
+
+  /**
+   * Base URL of the backend (Supabase Edge Functions). Empty = backend not deployed yet; the
+   * app keeps its current simulated Pix / client-side notification behaviour. See BACKEND_PLAN.md.
+   */
+  readonly VITE_API_BASE_URL?: string;
 }
 
 interface ImportMeta {

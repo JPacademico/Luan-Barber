@@ -3,6 +3,10 @@ import { useShopStore } from '../../store/shopStore';
 import { SectionHeading } from '../ui/SectionHeading';
 import { Award, Star } from 'lucide-react';
 
+/** Shown while the real /owner.jpg has not been dropped into /public yet. */
+const PORTRAIT_FALLBACK =
+  'https://images.unsplash.com/photo-1599351431202-1e0f0137899a?q=80&w=600&auto=format&fit=crop';
+
 export const OwnerSection: React.FC = () => {
   const owner = useShopStore((state) => state.owner);
 
@@ -16,10 +20,16 @@ export const OwnerSection: React.FC = () => {
             {/* Owner Portrait */}
             <div className="relative w-full aspect-[4/5] rounded-2xl overflow-hidden shadow-2xl group">
               <div className="absolute inset-0 bg-brand-gold mix-blend-multiply opacity-20 group-hover:opacity-0 transition-opacity duration-500 z-10"></div>
-              <img 
-                src={owner.imageUrl} 
-                alt={owner.name} 
+              <img
+                src={owner.imageUrl}
+                alt={owner.name}
+                loading="lazy"
                 className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700"
+                onError={(event) => {
+                  // Keeps the section presentable if /owner.jpg is missing from /public.
+                  const img = event.currentTarget;
+                  if (img.src !== PORTRAIT_FALLBACK) img.src = PORTRAIT_FALLBACK;
+                }}
               />
               {/* Decorative Frame */}
               <div className="absolute inset-4 border border-brand-gold/50 rounded-xl z-20 pointer-events-none"></div>
