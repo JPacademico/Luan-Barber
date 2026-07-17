@@ -8,9 +8,29 @@
 
 const read = (value: string | undefined): string => (value ?? '').trim();
 
-// Strip trailing slashes: a pasted "https://x.supabase.co/" would otherwise produce a broken
-// "https://x.supabase.co//rest/v1" and every request would 404.
-export const SUPABASE_URL = read(import.meta.env.VITE_SUPABASE_URL).replace(/\/+$/, '');
+/**
+ * Reduces whatever was pasted into `VITE_SUPABASE_URL` to a bare origin.
+ *
+ * The client appends `/rest/v1/...` itself, so any path on the configured value breaks every
+ * request. A URL pasted as ".../rest/v1" produced ".../rest/v1/rest/v1/bookings", which PostgREST
+ * rejects with `PGRST125: Invalid path specified in request URL`. Taking the origin makes the app
+ * tolerant of a trailing slash, an included REST path, or a missing protocol.
+ */
+const toOrigin = (raw: string | undefined): string => {
+  const value = read(raw);
+  if (!value) return '';
+
+  const withProtocol = /^https?:\/\//i.test(value) ? value : `https://${value}`;
+
+  try {
+    return new URL(withProtocol).origin;
+  } catch {
+    console.error('[Luan] VITE_SUPABASE_URL inválida, ignorando:', value);
+    return '';
+  }
+};
+
+export const SUPABASE_URL = toOrigin(import.meta.env.VITE_SUPABASE_URL);
 export const SUPABASE_ANON_KEY = read(import.meta.env.VITE_SUPABASE_ANON_KEY);
 
 /**

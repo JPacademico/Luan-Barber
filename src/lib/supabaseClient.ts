@@ -20,15 +20,19 @@ const baseHeaders: Record<string, string> = {
 };
 
 const request = async (path: string, init: RequestInit = {}): Promise<Response> => {
-  const response = await fetch(`${REST_URL}${path}`, {
+  const url = `${REST_URL}${path}`;
+
+  const response = await fetch(url, {
     ...init,
     headers: { ...baseHeaders, ...(init.headers as Record<string, string> | undefined) },
   });
 
   if (!response.ok) {
     const detail = await response.text().catch(() => '');
+    // The full URL (not just the path) is included: a malformed VITE_SUPABASE_URL is invisible
+    // otherwise, and it is the most common cause of a 404 here.
     throw new Error(
-      `Supabase ${init.method ?? 'GET'} ${path} failed (${response.status}): ${detail}`
+      `Supabase ${init.method ?? 'GET'} ${url} failed (${response.status}): ${detail}`
     );
   }
 
