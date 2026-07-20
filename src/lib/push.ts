@@ -82,8 +82,8 @@ export const enableAdminPush = async (): Promise<PushEnableResult> => {
     // to tell apart from a silently blocked notification.
     await ready.showNotification('Notificações ativadas ✅', {
       body: 'Você receberá um aviso aqui quando um cliente agendar.',
-      icon: '/logo-maskable.svg',
-      badge: '/favicon-admin.svg',
+      icon: '/notification-icon.png',
+      badge: '/notification-badge.png',
       tag: 'push-ativado',
     });
 

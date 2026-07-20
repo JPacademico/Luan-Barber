@@ -13,7 +13,7 @@
  * Bump CACHE_VERSION to force old caches out on the next deploy.
  */
 
-const CACHE_VERSION = 'luan-studio-v3';
+const CACHE_VERSION = 'luan-studio-v4';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -23,6 +23,9 @@ const APP_SHELL = [
   '/logo-maskable.svg',
   '/app-icon-admin.svg',
   '/favicon-admin.svg',
+  // Precached so a notification arriving offline still has its artwork.
+  '/notification-icon.png',
+  '/notification-badge.png',
 ];
 
 self.addEventListener('install', (event) => {
@@ -59,10 +62,12 @@ self.addEventListener('push', (event) => {
   }
 
   event.waitUntil(
+    // PNG, not SVG: Android/Chrome silently refuse to rasterise an SVG notification icon and
+    // fall back to a blank square, which is what these two files exist to fix.
     self.registration.showNotification(data.title, {
       body: data.body,
-      icon: '/logo-maskable.svg',
-      badge: '/favicon-admin.svg',
+      icon: '/notification-icon.png',
+      badge: '/notification-badge.png',
       data: { url: data.url },
       tag: 'novo-agendamento',
     })
