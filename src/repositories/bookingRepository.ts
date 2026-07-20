@@ -32,7 +32,6 @@ export interface BookingRepository {
 const backfillBooking = (booking: Partial<Booking> & { id: string }): Booking => ({
   id: booking.id,
   clientName: booking.clientName ?? '',
-  clientEmail: booking.clientEmail ?? '',
   clientPhone: booking.clientPhone ?? '',
   serviceId: booking.serviceId ?? '',
   durationMinutes: booking.durationMinutes ?? 30,

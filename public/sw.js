@@ -13,7 +13,7 @@
  * Bump CACHE_VERSION to force old caches out on the next deploy.
  */
 
-const CACHE_VERSION = 'luan-studio-v2';
+const CACHE_VERSION = 'luan-studio-v3';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -47,6 +47,39 @@ self.addEventListener('activate', (event) => {
 // Lets the page tell a waiting worker to take over immediately.
 self.addEventListener('message', (event) => {
   if (event.data === 'SKIP_WAITING') self.skipWaiting();
+});
+
+// Show a notification when a push arrives (fired even when the app is closed).
+self.addEventListener('push', (event) => {
+  let data = { title: 'Luan Studio Barber', body: 'Novo agendamento', url: '/admin' };
+  try {
+    if (event.data) data = { ...data, ...event.data.json() };
+  } catch {
+    // Not JSON, or no payload: keep the defaults.
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: '/logo-maskable.svg',
+      badge: '/favicon-admin.svg',
+      data: { url: data.url },
+      tag: 'novo-agendamento',
+    })
+  );
+});
+
+// Focus (or open) the admin panel when the notification is tapped.
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = event.notification.data?.url || '/admin';
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+      const existing = clients.find((c) => c.url.includes('/admin'));
+      if (existing) return existing.focus();
+      return self.clients.openWindow(targetUrl);
+    })
+  );
 });
 
 const isNavigationRequest = (request) =>

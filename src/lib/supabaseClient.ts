@@ -44,7 +44,6 @@ const request = async (path: string, init: RequestInit = {}): Promise<Response> 
 interface BookingRow {
   id: string;
   client_name: string;
-  client_email: string;
   client_phone: string;
   service_id: string;
   duration_minutes: number;
@@ -72,7 +71,6 @@ interface OverrideRow {
 const rowToBooking = (row: BookingRow): Booking => ({
   id: row.id,
   clientName: row.client_name,
-  clientEmail: row.client_email,
   clientPhone: row.client_phone,
   serviceId: row.service_id,
   durationMinutes: row.duration_minutes ?? 30,
@@ -91,7 +89,6 @@ const rowToBooking = (row: BookingRow): Booking => ({
 const bookingToRow = (booking: Booking): BookingRow => ({
   id: booking.id,
   client_name: booking.clientName,
-  client_email: booking.clientEmail,
   client_phone: booking.clientPhone,
   service_id: booking.serviceId,
   duration_minutes: booking.durationMinutes,

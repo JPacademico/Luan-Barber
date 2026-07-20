@@ -40,13 +40,20 @@ export const SUPABASE_ANON_KEY = read(import.meta.env.VITE_SUPABASE_ANON_KEY);
  */
 export const IS_CLOUD_ENABLED = SUPABASE_URL !== '' && SUPABASE_ANON_KEY !== '';
 
-// Cancellation e-mails are now sent by the backend (database-triggered), so the client-side
-// EmailJS / Formspree plumbing was removed.
+// Cancellations/bookings send nothing server-side any more — the admin reviews and sends the
+// WhatsApp cancellation draft manually. The client-side EmailJS / Formspree plumbing was removed.
 
 /**
- * Backend (Supabase Edge Functions) base URL. The single switch the future backend flips:
- * while empty, the app keeps its simulated Pix flow and client-side notification links; once
- * set, features migrate to real server endpoints one by one. See BACKEND_PLAN.md §2.2.
+ * Backend (Supabase Edge Functions) base URL. Empty while the backend isn't deployed; the app's
+ * simulated Pix flow doesn't need it. Push notifications do — it's where `save-push-subscription`
+ * lives.
  */
 export const API_BASE_URL = toOrigin(import.meta.env.VITE_API_BASE_URL);
 export const IS_BACKEND_ENABLED = API_BASE_URL !== '';
+
+/**
+ * VAPID public key for Web Push. Both this and the backend base URL must be present for the
+ * admin's "Ativar notificações" control to do anything real.
+ */
+export const VAPID_PUBLIC_KEY = read(import.meta.env.VITE_VAPID_PUBLIC_KEY);
+export const IS_PUSH_ENABLED = IS_BACKEND_ENABLED && VAPID_PUBLIC_KEY !== '';

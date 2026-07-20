@@ -8,9 +8,7 @@ import {
   ChevronRight,
   CircleDollarSign,
   Inbox,
-  MessageCircle,
   Phone,
-  XCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useBookingStore } from '../../store/bookingStore';
@@ -50,37 +48,36 @@ export const AppointmentsPanel: React.FC = () => {
   const rows = useMemo<AppointmentRow[]>(
     () =>
       bookings
-        .filter((booking) => booking.date === selectedDate)
+        .filter((booking) => booking.date === selectedDate && booking.status !== 'cancelled')
         .sort((a, b) => timeToMinutes(a.time) - timeToMinutes(b.time))
         .map((booking) => ({
           booking,
           service: services.find((s) => s.id === booking.serviceId),
         })),
-    [bookings, services, selectedDate]
+    [bookings, selectedDate, services]
   );
 
   /** Days with bookings, so the admin can see at a glance where the work is. */
   const upcomingDays = useMemo(() => {
     const counts = new Map<string, number>();
     for (const booking of bookings) {
+      if (booking.status === 'cancelled') continue;
       counts.set(booking.date, (counts.get(booking.date) ?? 0) + 1);
     }
     return counts;
   }, [bookings]);
 
-  const summary = useMemo(() => {
-    // Cancelled slots are neither work to do nor money to expect.
-    const live = rows.filter(({ booking }) => booking.status !== 'cancelled');
-
-    return {
-      total: live.length,
-      completed: live.filter(({ booking }) => booking.status === 'completed').length,
-      pendingVerification: live.filter(
+  const summary = useMemo(
+    () => ({
+      total: rows.length,
+      completed: rows.filter(({ booking }) => booking.status === 'completed').length,
+      pendingVerification: rows.filter(
         ({ booking }) => booking.paymentMethod === 'pix' && !booking.isPaid
       ).length,
-      expectedRevenue: live.reduce((total, { service }) => total + (service?.price ?? 0), 0),
-    };
-  }, [rows]);
+      expectedRevenue: rows.reduce((total, { service }) => total + (service?.price ?? 0), 0),
+    }),
+    [rows]
+  );
 
   const shiftDay = (days: number) =>
     setSelectedDate((current) => toDateKey(addDays(parseISO(current), days)));
@@ -100,9 +97,9 @@ export const AppointmentsPanel: React.FC = () => {
   const serviceFor = (booking: Booking) => services.find((s) => s.id === booking.serviceId);
 
   /**
-   * Opens WhatsApp Click-to-Chat with a stylised cancellation message pre-filled.
-   * Manual only: triggered by the button on a cancelled row, never automatically — the client's
-   * cancellation e-mail is sent by the backend the moment the booking flips to `cancelled`.
+   * Opens WhatsApp Click-to-Chat with an editable cancellation draft pre-filled. This is the
+   * only outbound message the app sends — nothing goes out automatically; the admin reviews the
+   * draft and taps send in WhatsApp themselves.
    */
   const openCancellationWhatsApp = (booking: Booking) => {
     const url = buildCancellationWhatsAppUrl({
@@ -117,10 +114,21 @@ export const AppointmentsPanel: React.FC = () => {
     cancelBooking(row.booking.id, reason);
     setCancelTarget(null);
 
-    // The client's cancellation e-mail is dispatched automatically by the backend on the status
-    // change; the browser no longer sends anything. WhatsApp stays a manual choice (button below).
+    // Compose from the post-cancellation booking so the reason reaches the draft.
+    const cancelled: Booking = {
+      ...row.booking,
+      status: 'cancelled',
+      cancelledAt: new Date().toISOString(),
+      cancellationReason: reason,
+    };
+
+    // Opens WhatsApp on the client's number with the message pre-filled. The admin can edit it
+    // before sending — nothing is sent until they tap send. Must stay synchronous (no await/then
+    // before it) or the popup blocker eats the tab and the admin thinks the client was notified.
+    openCancellationWhatsApp(cancelled);
+
     toast.success(`Agendamento de ${row.booking.clientName} cancelado.`, {
-      description: 'Horário liberado. O cliente será avisado por e-mail automaticamente.',
+      description: 'Horário liberado. Revise e envie a mensagem no WhatsApp que abriu.',
       duration: 7000,
     });
   };
@@ -259,7 +267,6 @@ export const AppointmentsPanel: React.FC = () => {
                           onVerify={() => handleVerifyPayment(booking)}
                           onComplete={() => handleComplete(booking)}
                           onCancel={() => setCancelTarget({ booking, service })}
-                          onWhatsApp={() => openCancellationWhatsApp(booking)}
                         />
                       </div>
                     </td>
@@ -306,7 +313,6 @@ export const AppointmentsPanel: React.FC = () => {
                     onVerify={() => handleVerifyPayment(booking)}
                     onComplete={() => handleComplete(booking)}
                     onCancel={() => setCancelTarget({ booking, service })}
-                    onWhatsApp={() => openCancellationWhatsApp(booking)}
                   />
                 </div>
               </article>
@@ -316,7 +322,7 @@ export const AppointmentsPanel: React.FC = () => {
       )}
 
       <p className="text-xs text-slate-500">
-        Atendimentos concluídos ou cancelados saem desta lista automaticamente a partir das{' '}
+        Agendamentos cancelados saem da lista imediatamente. Os concluídos saem a partir das{' '}
         {DAILY_PURGE_HOUR}:00.
       </p>
 
@@ -375,7 +381,6 @@ interface AppointmentActionsProps {
   onVerify: () => void;
   onComplete: () => void;
   onCancel: () => void;
-  onWhatsApp: () => void;
 }
 
 const AppointmentActions: React.FC<AppointmentActionsProps> = ({
@@ -383,7 +388,6 @@ const AppointmentActions: React.FC<AppointmentActionsProps> = ({
   onVerify,
   onComplete,
   onCancel,
-  onWhatsApp,
 }) => {
   if (booking.status === 'completed') {
     return (
@@ -393,26 +397,7 @@ const AppointmentActions: React.FC<AppointmentActionsProps> = ({
     );
   }
 
-  // A cancelled booking is done. The client's e-mail went out automatically (backend); the
-  // WhatsApp button is an optional, manual extra nudge.
-  if (booking.status === 'cancelled') {
-    return (
-      <>
-        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-red-400">
-          <XCircle size={14} /> Cancelado
-        </span>
-
-        <button
-          type="button"
-          onClick={onWhatsApp}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-700 text-slate-400 hover:border-emerald-500/50 hover:text-emerald-400 transition-colors whitespace-nowrap"
-          title={`Avisar ${booking.clientPhone} no WhatsApp`}
-        >
-          <MessageCircle size={13} /> WhatsApp
-        </button>
-      </>
-    );
-  }
+  // Cancelled bookings never reach here — they're filtered out of `rows` entirely.
 
   const needsPixVerification = booking.paymentMethod === 'pix' && !booking.isPaid;
 

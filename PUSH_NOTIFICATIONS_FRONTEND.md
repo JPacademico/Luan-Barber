@@ -1,7 +1,61 @@
-# Feature plan — Mobile push notification to the admin (FRONTEND half)
+# Feature plan — PWA notifications (FRONTEND half)
 
-**Goal:** when a client books, the admin's installed PWA receives a push notification on their
-phone, even with the app closed.
+> ## ⚠️ Start here — pick the right option
+>
+> This document was written for one goal (notify the **admin** when a booking arrives). The current
+> requirement is to notify the **client** when *they* book. Those need very different amounts of
+> work:
+>
+> **Option 1 — Local notification (what the current requirement needs).** The client is looking at
+> the page at the moment they book, so the site can just *show* a notification. **No backend, no
+> VAPID keys, no subscriptions, no server.** ~10 lines of code, completely free. See
+> [Option 1 below](#option-1--local-notification-no-backend-required).
+>
+> **Option 2 — True push (the rest of this document).** Needed only for notifications that arrive
+> when the app is **closed** — e.g. reminding a client the day before their appointment, or
+> alerting the admin while they're away. Requires the backend half
+> (`Luan-Studio-Back/PUSH_NOTIFICATIONS_BACKEND.md`) and real infrastructure.
+>
+> If the goal is just "tell the client their booking worked", **do Option 1 and stop.**
+
+---
+
+## Option 1 — Local notification (no backend required)
+
+Right after a booking succeeds, ask permission and show a notification from the already-registered
+service worker. Add to `src/components/booking/BookingForm.tsx`'s success path (or a small helper
+in `src/lib/notifications.ts`):
+
+```ts
+export const showBookingNotification = async (serviceName: string, scheduledFor: string) => {
+  if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
+
+  // Must be called from the user's click gesture (the booking submit).
+  const permission = await Notification.requestPermission();
+  if (permission !== 'granted') return; // silently fall back to the on-screen toast
+
+  const registration = await navigator.serviceWorker.ready;
+  await registration.showNotification('Agendamento confirmado ✅', {
+    body: `${serviceName} em ${scheduledFor}. Até breve!`,
+    icon: '/logo-maskable.svg',
+    badge: '/favicon-admin.svg',
+    tag: 'agendamento-confirmado',
+  });
+};
+```
+
+Notes:
+- The service worker only registers in production (`registerServiceWorker.ts` bails in dev), so
+  test on a deployed/preview build.
+- Keep the existing success toast as the fallback — permission may be denied, and on iOS this only
+  works in an installed (Home-Screen) PWA.
+- Nothing else in this document is needed for Option 1.
+
+---
+
+## Option 2 — True push (app closed)
+
+**Goal:** a device receives a notification even with the app closed, via an installed PWA.
 
 **Free & standard?** Yes — Web Push API + VAPID, no paid service. Works on installed PWAs on
 Android/desktop, and on **iOS 16.4+ only when the site is added to the Home Screen** (regular

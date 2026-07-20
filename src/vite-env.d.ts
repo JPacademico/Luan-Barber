@@ -14,9 +14,12 @@ interface ImportMetaEnv {
 
   /**
    * Base URL of the backend (Supabase Edge Functions). Empty = backend not deployed yet; the
-   * app keeps its current simulated Pix / client-side notification behaviour. See BACKEND_PLAN.md.
+   * app keeps its current simulated Pix behaviour and push notifications stay disabled.
    */
   readonly VITE_API_BASE_URL?: string;
+
+  /** VAPID public key for Web Push, from `npx web-push generate-vapid-keys`. Enables push. */
+  readonly VITE_VAPID_PUBLIC_KEY?: string;
 }
 
 interface ImportMeta {

@@ -84,7 +84,6 @@ export const BookingForm: React.FC<BookingFormProps> = ({
     const newBooking: Booking = {
       id: crypto.randomUUID(),
       clientName: data.clientName,
-      clientEmail: data.clientEmail,
       clientPhone: data.clientPhone,
       serviceId: selectedService.id,
       durationMinutes: selectedService.duration,
@@ -182,22 +181,9 @@ export const BookingForm: React.FC<BookingFormProps> = ({
           {errors.clientPhone && (
             <p className="mt-1 text-sm text-red-500">{errors.clientPhone.message}</p>
           )}
-        </div>
-
-        <div>
-          <label htmlFor="clientEmail" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Email
-          </label>
-          <input
-            id="clientEmail"
-            type="email"
-            className="input-field"
-            placeholder="Ex: joao@email.com"
-            {...register('clientEmail')}
-          />
-          {errors.clientEmail && (
-            <p className="mt-1 text-sm text-red-500">{errors.clientEmail.message}</p>
-          )}
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            É por aqui que a barbearia avisa se algo mudar no seu horário.
+          </p>
         </div>
 
         <PaymentMethodSelector value={paymentMethod} onChange={onPaymentMethodChange} />

@@ -25,7 +25,6 @@ export type BookingStatus = 'active' | 'completed' | 'cancelled';
 export interface Booking {
   id: string;
   clientName: string;
-  clientEmail: string;
   clientPhone: string;
   serviceId: string;
   /**
@@ -48,7 +47,7 @@ export interface Booking {
   status: BookingStatus;
   completedAt: string | null;
   cancelledAt: string | null;
-  /** Optional note from the admin, included in the cancellation email. */
+  /** Optional note from the admin, included in the cancellation WhatsApp draft. */
   cancellationReason: string | null;
 }
 
