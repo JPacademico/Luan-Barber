@@ -22,6 +22,8 @@ export type PushEnableResult =
   | 'denied'
   | 'unsupported'
   | 'not-configured'
+  | 'no-service-worker'
+  | 'server-error'
   | 'error';
 
 export const isPushSupported = (): boolean =>
@@ -32,16 +34,22 @@ export const enableAdminPush = async (): Promise<PushEnableResult> => {
   if (!IS_PUSH_ENABLED) return 'not-configured';
   if (!isPushSupported()) return 'unsupported';
 
+  // `serviceWorker.ready` never resolves when no worker was ever registered — and registration is
+  // production-only (registerServiceWorker.ts). Without this guard the button hangs on "Ativando…"
+  // forever in `vite dev` instead of reporting anything.
+  const registration = await navigator.serviceWorker.getRegistration();
+  if (!registration) return 'no-service-worker';
+
   const permission = await Notification.requestPermission();
   if (permission !== 'granted') return 'denied';
 
   try {
-    const registration = await navigator.serviceWorker.ready;
+    const ready = await navigator.serviceWorker.ready;
 
     // Reuse an existing subscription if present, else create one.
     const subscription =
-      (await registration.pushManager.getSubscription()) ??
-      (await registration.pushManager.subscribe({
+      (await ready.pushManager.getSubscription()) ??
+      (await ready.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
       }));
@@ -56,7 +64,19 @@ export const enableAdminPush = async (): Promise<PushEnableResult> => {
         userAgent: navigator.userAgent,
       }),
     });
-    return res.ok ? 'subscribed' : 'error';
+
+    if (!res.ok) {
+      // The status and body are the only way to tell "function not deployed" (404) from
+      // "table missing / secrets unset" (500) — a bare boolean here makes setup gaps invisible.
+      const detail = await res.text().catch(() => '');
+      console.error(
+        `[push] save-push-subscription failed (${res.status}) at ${API_BASE_URL}:`,
+        detail
+      );
+      return 'server-error';
+    }
+
+    return 'subscribed';
   } catch (err) {
     console.error('[push] enable failed', err);
     return 'error';
