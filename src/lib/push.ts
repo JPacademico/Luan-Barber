@@ -76,6 +76,17 @@ export const enableAdminPush = async (): Promise<PushEnableResult> => {
       return 'server-error';
     }
 
+    // Fire a real notification right now, from the same service worker that will display the
+    // pushed ones. If this appears but new-booking alerts never do, the browser half is proven
+    // good and the problem is server-side (trigger / VAPID keys) — which is otherwise very hard
+    // to tell apart from a silently blocked notification.
+    await ready.showNotification('Notificações ativadas ✅', {
+      body: 'Você receberá um aviso aqui quando um cliente agendar.',
+      icon: '/logo-maskable.svg',
+      badge: '/favicon-admin.svg',
+      tag: 'push-ativado',
+    });
+
     return 'subscribed';
   } catch (err) {
     console.error('[push] enable failed', err);
