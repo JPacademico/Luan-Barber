@@ -7,10 +7,14 @@ export const PUBLIC_BRANDING = {
   title: 'Luan Studio Barber | Experiência, Estilo e Atendimento',
   favicon: '/logo.svg',
   manifest: '/manifest.webmanifest',
+  appleTouchIcon: '/apple-touch-icon.png',
+  appleTitle: 'Luan Studio',
 } as const;
 
 export const ADMIN_BRANDING = {
   title: 'Painel Administrativo · Luan Studio',
   favicon: '/favicon-admin.svg',
   manifest: '/manifest-admin.webmanifest',
+  appleTouchIcon: '/apple-touch-icon-admin.png',
+  appleTitle: 'Luan Admin',
 } as const;

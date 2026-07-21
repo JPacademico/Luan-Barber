@@ -66,7 +66,7 @@ export const useShopStore = create<ShopState>()(
     }),
     {
       name: SHOP_STORAGE_KEY,
-      version: 4,
+      version: 5,
       migrate: (persistedState, version) => {
         const state = persistedState as Partial<ShopState>;
 
@@ -87,9 +87,21 @@ export const useShopStore = create<ShopState>()(
                 pixKey: state.shopInfo?.pixKey ?? DEFAULT_SHOP_INFO.pixKey,
               };
 
+        /**
+         * v5 swapped the first slide from an Unsplash stock shot to the real shop photo. Only a
+         * slide still holding that exact placeholder is replaced — an admin who uploaded their own
+         * image keeps it, unlike the blunt v4 portrait reset.
+         */
+        const carouselImages = (state.carouselImages ?? DEFAULT_CAROUSEL).map((image) => {
+          const replacement = DEFAULT_CAROUSEL.find((d) => d.id === image.id);
+          const isStalePlaceholder = image.url.includes('photo-1585747860715-2ba37e788b70');
+          return replacement && isStalePlaceholder ? { ...image, ...replacement } : image;
+        });
+
         return {
           ...state,
           shopInfo,
+          carouselImages,
           // v3 added the client counter; without a backfill the About section renders "undefined+".
           // v4 replaced the Unsplash placeholder portrait with the real /owner.jpg — a persisted
           // old URL would keep showing the stranger, so the portrait resets to the default.

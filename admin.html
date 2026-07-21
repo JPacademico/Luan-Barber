@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <link id="app-favicon" rel="icon" type="image/svg+xml" href="/favicon-admin.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#111827" />
+    <title>Painel Administrativo · Luan Studio</title>
+
+    <!-- Separate entry point purely for iOS.
+         Safari resolves `rel="manifest"` from the document it loaded and does not re-read it when
+         a SPA swaps the tag afterwards, so "Adicionar à Tela de Início" from /admin was installing
+         the PUBLIC app. Serving /admin as its own document with the admin manifest linked
+         statically is the only reliable way to make the panel installable as its own app on iOS.
+         Chromium reads the swapped tag fine either way, so nothing regresses there. -->
+    <link id="app-manifest" rel="manifest" href="/manifest-admin.webmanifest" />
+
+    <!-- PNG, not SVG: iOS ignores an SVG apple-touch-icon and falls back to a page screenshot. -->
+    <link rel="apple-touch-icon" href="/apple-touch-icon-admin.png" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Luan Admin" />
+
+    <!-- Plus Jakarta Sans only: the panel never renders the storefront's display faces. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="font-body text-brand-black bg-brand-cream dark:bg-brand-black dark:text-brand-cream transition-colors duration-300">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

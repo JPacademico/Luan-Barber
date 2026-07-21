@@ -13,27 +13,49 @@
  * Bump CACHE_VERSION to force old caches out on the next deploy.
  */
 
-const CACHE_VERSION = 'luan-studio-v4';
+const CACHE_VERSION = 'luan-studio-v5';
 const APP_SHELL = [
-  '/',
-  '/index.html',
   '/manifest.webmanifest',
   '/manifest-admin.webmanifest',
   '/logo.svg',
   '/logo-maskable.svg',
   '/app-icon-admin.svg',
   '/favicon-admin.svg',
+  '/apple-touch-icon.png',
+  '/apple-touch-icon-admin.png',
   // Precached so a notification arriving offline still has its artwork.
   '/notification-icon.png',
   '/notification-badge.png',
 ];
 
+/**
+ * The two HTML documents, as [url to fetch, cache key]. The public site and the admin panel are
+ * separate documents (see admin.html) because iOS only honours the manifest of the document it
+ * loaded. Caching them under distinct keys matters: serving index.html at /admin offline would
+ * hand the admin PWA the PUBLIC manifest and undo the separation.
+ */
+const SHELLS = [
+  ['/', '/index.html'],
+  ['/admin', '/admin.html'],
+];
+
+/** Which cached document should answer a navigation to `pathname`. */
+const shellKeyFor = (pathname) => (pathname.startsWith('/admin') ? '/admin.html' : '/index.html');
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches
       .open(CACHE_VERSION)
-      // Best-effort: a single 404 must not abort the whole install.
-      .then((cache) => Promise.allSettled(APP_SHELL.map((url) => cache.add(url))))
+      .then((cache) =>
+        // Best-effort: a single 404 must not abort the whole install.
+        Promise.allSettled([
+          ...APP_SHELL.map((url) => cache.add(url)),
+          // Fetched by URL but stored under the document key the navigation handler looks up.
+          ...SHELLS.map(([url, key]) =>
+            fetch(url).then((response) => (response.ok ? cache.put(key, response) : undefined))
+          ),
+        ])
+      )
       .then(() => self.skipWaiting())
   );
 });
@@ -100,14 +122,16 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
 
   if (isNavigationRequest(request)) {
+    const shellKey = shellKeyFor(url.pathname);
     event.respondWith(
       fetch(request)
         .then((response) => {
           const copy = response.clone();
-          caches.open(CACHE_VERSION).then((cache) => cache.put('/index.html', copy));
+          caches.open(CACHE_VERSION).then((cache) => cache.put(shellKey, copy));
           return response;
         })
-        .catch(() => caches.match('/index.html').then((cached) => cached || caches.match('/')))
+        // Fall back to this route's own document, never the other one's.
+        .catch(() => caches.match(shellKey).then((cached) => cached || caches.match('/index.html')))
     );
     return;
   }

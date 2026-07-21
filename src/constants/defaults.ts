@@ -76,7 +76,8 @@ export const DEFAULT_SHOP_INFO: ShopInfo = {
 };
 
 export const DEFAULT_CAROUSEL: CarouselImage[] = [
-  { id: '1', url: 'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?q=80&w=1920&auto=format&fit=crop', alt: 'Barbearia Ambiente', order: 1 },
+  // The real shop, not stock photography — served locally so it also works offline in the PWA.
+  { id: '1', url: '/interior.jpg', alt: 'Salão da Luan Studio Barber', order: 1 },
   { id: '2', url: 'https://images.unsplash.com/photo-1621605815971-fbc98d665033?q=80&w=1920&auto=format&fit=crop', alt: 'Corte de Cabelo Premium', order: 2 },
   { id: '3', url: 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?q=80&w=1920&auto=format&fit=crop', alt: 'Barba Alinhada', order: 3 },
 ];

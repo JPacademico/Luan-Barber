@@ -12,7 +12,8 @@
     <!-- PWA: installable app manifest + platform install hints.
          id lets useDocumentMeta swap the manifest per route (public vs. admin install). -->
     <link id="app-manifest" rel="manifest" href="/manifest.webmanifest" />
-    <link rel="apple-touch-icon" href="/logo.svg" />
+    <!-- PNG, not SVG: iOS ignores an SVG apple-touch-icon and falls back to a page screenshot. -->
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
