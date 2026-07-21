@@ -26,7 +26,7 @@ interface CancellationContext {
   shopName: string;
 }
 
-/** A polite, stylised cancellation message including the date, time and service. */
+/** A polite, plain-text cancellation message including the date, time and service. */
 export const composeCancellationWhatsAppMessage = ({
   booking,
   service,
@@ -35,21 +35,21 @@ export const composeCancellationWhatsAppMessage = ({
   const prettyDate = format(parseISO(booking.date), 'dd/MM/yyyy');
 
   const lines = [
-    `Olá, ${booking.clientName}! 👋`,
+    `Olá, ${booking.clientName}!`,
     ``,
     `Aqui é da *${shopName}*.`,
     `Infelizmente precisamos *cancelar* o seu agendamento:`,
     ``,
-    `✂️ Serviço: ${service?.name ?? 'Serviço'}`,
-    `📅 Data: ${prettyDate}`,
-    `⏰ Horário: ${booking.time}`,
-    ...(booking.cancellationReason ? ['', `ℹ️ Motivo: ${booking.cancellationReason}`] : []),
+    `*Serviço:* ${service?.name ?? 'Serviço'}`,
+    `*Data:* ${prettyDate}`,
+    `*Horário:* ${booking.time}`,
+    ...(booking.cancellationReason ? ['', `*Motivo:* ${booking.cancellationReason}`] : []),
     ``,
-    `Sentimos muito pelo transtorno. 🙏`,
+    `Sentimos muito pelo transtorno.`,
     `Podemos remarcar? É só responder esta mensagem e a gente encontra um novo horário pra você.`,
     ``,
     `Um abraço,`,
-    `Equipe ${shopName}`,
+    `Equipe *${shopName}*`,
   ];
 
   return lines.join('\n');
