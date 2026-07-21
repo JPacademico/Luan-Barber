@@ -8,6 +8,7 @@ import { InstallAppBanner } from './components/pwa/InstallAppBanner';
 import { useAutoArchive } from './hooks/useAutoArchive';
 import { useCrossTabSync } from './hooks/useCrossTabSync';
 import { useBookingSync } from './hooks/useBookingSync';
+import { useServicesSync } from './hooks/useServicesSync';
 import { useApplyTheme } from './hooks/useApplyTheme';
 
 /**
@@ -25,6 +26,8 @@ function App() {
   useApplyTheme();
   // Loads bookings from the cloud/local repository and keeps every device/tab in sync.
   useBookingSync();
+  // Prices come from the database — the same rows Pix charges from — not from this device.
+  useServicesSync();
   // Bookings are archived against the 22:00 cut-off for as long as the app stays open.
   useAutoArchive();
   // Keeps shop configuration (services, prices, hours) in sync across tabs.

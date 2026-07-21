@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Service, DailySpecial, OwnerProfile, ShopInfo, CarouselImage } from '../types';
 import { DEFAULT_OWNER, DEFAULT_SERVICES, DEFAULT_SPECIALS, DEFAULT_SHOP_INFO, DEFAULT_CAROUSEL } from '../constants/defaults';
+import { IS_CLOUD_ENABLED } from '../lib/env';
+import { supabaseApi } from '../lib/supabaseClient';
 
 /** Exported so the cross-tab sync hook can recognise this store's `storage` events. */
 export const SHOP_STORAGE_KEY = 'luan-studio-shop';
@@ -19,6 +21,8 @@ interface ShopState {
   updateShopInfo: (data: Partial<ShopInfo>) => void;
   updateCarouselImage: (index: number, data: Partial<CarouselImage>) => void;
   resetToDefaults: () => void;
+  /** Replaces the local catalogue with the database's, when cloud sync is configured. */
+  syncServicesFromCloud: () => Promise<void>;
 }
 
 export const useShopStore = create<ShopState>()(
@@ -63,6 +67,25 @@ export const useShopStore = create<ShopState>()(
           shopInfo: DEFAULT_SHOP_INFO,
           carouselImages: DEFAULT_CAROUSEL,
         }),
+
+      /**
+       * The database is the source of truth for prices — it is what Pix charges from, and it is
+       * shared, unlike this store's per-device localStorage. Without this, a price Luan edits on
+       * his phone stays on his phone while every other visitor keeps seeing the old one.
+       *
+       * Failure is deliberately silent: the persisted catalogue stays on screen so the site still
+       * works offline or before the backend is configured.
+       */
+      syncServicesFromCloud: async () => {
+        if (!IS_CLOUD_ENABLED) return;
+
+        try {
+          const services = await supabaseApi.fetchServices();
+          if (services.length > 0) set({ services });
+        } catch (error) {
+          console.error('[shop] failed to load services from cloud', error);
+        }
+      },
     }),
     {
       name: SHOP_STORAGE_KEY,

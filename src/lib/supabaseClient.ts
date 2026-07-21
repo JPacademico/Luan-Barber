@@ -1,5 +1,11 @@
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from './env';
-import type { Booking, BookingStatus, DayScheduleOverride, PaymentMethod } from '../types';
+import type {
+  Booking,
+  BookingStatus,
+  DayScheduleOverride,
+  PaymentMethod,
+  Service,
+} from '../types';
 
 /**
  * Minimal Supabase data client built on `fetch` against PostgREST.
@@ -66,6 +72,15 @@ interface OverrideRow {
   end_hour: number | null;
 }
 
+interface ServiceRow {
+  id: string;
+  name: string;
+  price_cents: number;
+  duration_minutes: number;
+  description: string | null;
+  active: boolean;
+}
+
 // --- Mappers -----------------------------------------------------------------------------------
 
 const rowToBooking = (row: BookingRow): Booking => ({
@@ -104,6 +119,15 @@ const bookingToRow = (booking: Booking): BookingRow => ({
   cancellation_reason: booking.cancellationReason,
 });
 
+/** Cents -> reais. The database stores integers so no float rounding can alter a Pix charge. */
+const rowToService = (row: ServiceRow): Service => ({
+  id: row.id,
+  name: row.name,
+  price: row.price_cents / 100,
+  duration: row.duration_minutes,
+  description: row.description ?? '',
+});
+
 const rowToOverride = (row: OverrideRow): DayScheduleOverride => ({
   date: row.date,
   isClosed: row.is_closed,
@@ -125,6 +149,17 @@ export const supabaseApi = {
     const response = await request('/bookings?select=*&order=date.asc,time.asc');
     const rows = (await response.json()) as BookingRow[];
     return rows.map(rowToBooking);
+  },
+
+  /**
+   * The service catalogue as the database has it — the same rows Pix prices from, so the site
+   * can never advertise a price different from the one that gets charged. RLS returns only
+   * `active` rows.
+   */
+  async fetchServices(): Promise<Service[]> {
+    const response = await request('/services?select=*&order=id.asc');
+    const rows = (await response.json()) as ServiceRow[];
+    return rows.map(rowToService);
   },
 
   async fetchOverrides(): Promise<DayScheduleOverride[]> {

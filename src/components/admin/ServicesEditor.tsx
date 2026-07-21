@@ -3,6 +3,7 @@ import { Clock, RotateCcw, Save, Scissors, Tag } from 'lucide-react';
 import { toast } from 'sonner';
 import { useShopStore } from '../../store/shopStore';
 import { SLOT_INTERVAL_MINUTES } from '../../lib/timeSlots';
+import { pushServicesToBackend } from '../../lib/adminApi';
 import type { Service } from '../../types';
 
 /** Editing buffer: price/duration live as strings so a half-typed value isn't coerced to 0. */
@@ -42,6 +43,7 @@ export const ServicesEditor: React.FC = () => {
   const updateService = useShopStore((state) => state.updateService);
 
   const [drafts, setDrafts] = useState<ServiceDraft[]>(() => services.map(toDraft));
+  const [isSaving, setIsSaving] = useState(false);
 
   const patchDraft = (id: string, patch: Partial<ServiceDraft>) =>
     setDrafts((current) => current.map((d) => (d.id === id ? { ...d, ...patch } : d)));
@@ -67,19 +69,23 @@ export const ServicesEditor: React.FC = () => {
     [drafts, services]
   );
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (invalidCount > 0) {
       toast.error('Corrija os campos destacados antes de salvar.');
       return;
     }
 
-    for (const draft of drafts) {
-      updateService(draft.id, {
-        name: draft.name.trim(),
-        price: parsePrice(draft.price),
-        duration: Number(draft.duration),
-        description: draft.description.trim(),
-      });
+    const updated: Service[] = drafts.map((draft) => ({
+      id: draft.id,
+      name: draft.name.trim(),
+      price: parsePrice(draft.price),
+      duration: Number(draft.duration),
+      description: draft.description.trim(),
+    }));
+
+    // Apply locally first so the panel stays responsive; the network call follows.
+    for (const service of updated) {
+      updateService(service.id, service);
     }
 
     // Re-normalise the buffer so "45" renders back as "45.00" after saving.
@@ -87,9 +93,42 @@ export const ServicesEditor: React.FC = () => {
       current.map((d) => ({ ...d, price: parsePrice(d.price).toFixed(2), name: d.name.trim() }))
     );
 
-    toast.success('Serviços e preços atualizados.', {
-      description: 'As alterações já valem para novos agendamentos.',
-    });
+    setIsSaving(true);
+    const outcome = await pushServicesToBackend(updated);
+    setIsSaving(false);
+
+    if (outcome === 'synced') {
+      toast.success('Serviços e preços atualizados.', {
+        description: 'Vale para o site, para novos agendamentos e para a cobrança Pix.',
+      });
+      return;
+    }
+
+    if (outcome === 'skipped') {
+      // No backend configured (local demo): the local save above is all there is.
+      toast.success('Serviços e preços atualizados.', {
+        description: 'As alterações já valem para novos agendamentos.',
+      });
+      return;
+    }
+
+    /*
+     * The local edit stuck but the database did not take it. That gap matters more than a normal
+     * failed request: the site would advertise the new price while Pix still charges the old one,
+     * so it is reported as a warning the barber has to act on, not a silent console error.
+     */
+    if (outcome === 'unauthorized') {
+      toast.error('Sessão expirada — preços não sincronizados.', {
+        description: 'Saia e entre novamente no painel para salvar no servidor.',
+        duration: 10000,
+      });
+    } else {
+      toast.error('Preços salvos apenas neste aparelho.', {
+        description:
+          'O servidor não confirmou a alteração; a cobrança Pix continua com o valor antigo. Tente salvar de novo.',
+        duration: 10000,
+      });
+    }
   };
 
   const handleRevert = () => {
@@ -111,7 +150,7 @@ export const ServicesEditor: React.FC = () => {
           <button
             type="button"
             onClick={handleRevert}
-            disabled={!isDirty}
+            disabled={!isDirty || isSaving}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-700 text-slate-300 text-sm font-medium hover:bg-white/5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <RotateCcw size={15} /> Descartar
@@ -119,10 +158,10 @@ export const ServicesEditor: React.FC = () => {
           <button
             type="button"
             onClick={handleSave}
-            disabled={!isDirty || invalidCount > 0}
+            disabled={!isDirty || invalidCount > 0 || isSaving}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-gold text-brand-black text-sm font-semibold hover:bg-brand-gold/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            <Save size={15} /> Salvar alterações
+            <Save size={15} /> {isSaving ? 'Salvando…' : 'Salvar alterações'}
           </button>
         </div>
       </header>

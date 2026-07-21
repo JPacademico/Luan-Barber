@@ -5,6 +5,7 @@ import { AdminToaster } from '../ui/BrandToaster';
 import { AdminInstallButton } from '../pwa/AdminInstallButton';
 import { PushToggle } from '../admin/PushToggle';
 import { SyncStatusBadge } from '../admin/SyncStatusBadge';
+import { forgetAdminPassword } from '../../lib/adminApi';
 import { useDocumentMeta } from '../../hooks/useDocumentMeta';
 import { ADMIN_BRANDING } from '../../constants/branding';
 
@@ -16,6 +17,8 @@ export const AdminLayout: React.FC = () => {
 
   const handleLogout = () => {
     sessionStorage.removeItem('adminAuth');
+    // The password is held for the session so price saves can re-authenticate; drop it too.
+    forgetAdminPassword();
     window.location.reload();
   };
 
