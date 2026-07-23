@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { Clock, Plus, RotateCcw, Save, Scissors, Tag, Trash2 } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Clock, Plus, RotateCcw, Save, Scissors, Sparkles, Tag, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useShopStore } from '../../store/shopStore';
 import { SLOT_INTERVAL_MINUTES } from '../../lib/timeSlots';
@@ -53,11 +53,26 @@ export const ServicesEditor: React.FC = () => {
 
   const [drafts, setDrafts] = useState<ServiceDraft[]>(() => services.map(toDraft));
   const [isSaving, setIsSaving] = useState(false);
+  // The just-appended service, so we can scroll to and focus it — otherwise a new card lands
+  // below the fold with nothing to say it appeared.
+  const [newlyAddedId, setNewlyAddedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!newlyAddedId) return;
+    const input = document.getElementById(`name-${newlyAddedId}`);
+    input?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    (input as HTMLInputElement | null)?.focus();
+    setNewlyAddedId(null);
+  }, [newlyAddedId]);
 
   const patchDraft = (id: string, patch: Partial<ServiceDraft>) =>
     setDrafts((current) => current.map((d) => (d.id === id ? { ...d, ...patch } : d)));
 
-  const addDraft = () => setDrafts((current) => [...current, emptyDraft()]);
+  const addDraft = () => {
+    const draft = emptyDraft();
+    setDrafts((current) => [...current, draft]);
+    setNewlyAddedId(draft.id);
+  };
 
   const removeDraft = (id: string) =>
     setDrafts((current) => current.filter((d) => d.id !== id));
@@ -211,10 +226,24 @@ export const ServicesEditor: React.FC = () => {
           const priceValid = isPriceValid(draft.price);
           const durationValid = isDurationValid(draft.duration);
           const nameValid = draft.name.trim().length > 0;
+          // Not yet in the saved catalogue — flag it so the barber sees it's pending a save.
+          const isNew = !services.some((s) => s.id === draft.id);
 
           return (
-            <div key={draft.id} className="bg-[#1a1a1a] rounded-xl border border-gray-800 p-5">
-              <div className="flex justify-end mb-3">
+            <div
+              key={draft.id}
+              className={`bg-[#1a1a1a] rounded-xl border p-5 transition-colors ${
+                isNew ? 'border-brand-gold/50 ring-1 ring-brand-gold/20' : 'border-gray-800'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-3">
+                {isNew ? (
+                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-gold">
+                    <Sparkles size={13} /> Novo — salve para publicar
+                  </span>
+                ) : (
+                  <span />
+                )}
                 <button
                   type="button"
                   onClick={() => removeDraft(draft.id)}
