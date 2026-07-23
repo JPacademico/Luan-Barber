@@ -18,6 +18,8 @@ interface ShopState {
   updateOwner: (data: Partial<OwnerProfile>) => void;
   updateOwnerCertificate: (index: number, data: Partial<OwnerProfile['certificates'][0]>) => void;
   updateService: (id: string, data: Partial<Service>) => void;
+  /** Replaces the whole catalogue in one shot — used when the panel saves adds/edits/removes. */
+  replaceServices: (services: Service[]) => void;
   updateShopInfo: (data: Partial<ShopInfo>) => void;
   updateCarouselImage: (index: number, data: Partial<CarouselImage>) => void;
   resetToDefaults: () => void;
@@ -48,6 +50,10 @@ export const useShopStore = create<ShopState>()(
         set((state) => ({
           services: state.services.map((s) => (s.id === id ? { ...s, ...data } : s)),
         })),
+
+      // The array order is the display order (mirrored to the DB's sort_order on save), so the
+      // panel hands the list back exactly as arranged.
+      replaceServices: (services) => set({ services }),
 
       updateShopInfo: (data) =>
         set((state) => ({ shopInfo: { ...state.shopInfo, ...data } })),

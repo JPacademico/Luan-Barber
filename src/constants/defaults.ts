@@ -26,12 +26,19 @@ export const SHOP_MAP_QUERY = 'Av. Murilo Dantas, 881 - Farolândia, Aracaju - S
 export const buildMapEmbedUrl = (query: string): string =>
   `https://www.google.com/maps?q=${encodeURIComponent(query)}&hl=pt-BR&z=17&output=embed`;
 
+// Fallback catalogue only. When cloud sync is on, the database (managed from the admin panel) is
+// the source of truth and replaces this on load — see useServicesSync. Kept in sync with the
+// backend seed (Luan-Studio-Back migrations 0002 + 0012) so local dev matches production.
 export const DEFAULT_SERVICES: Service[] = [
   { id: '1', name: 'Corte Premium', price: 45, duration: 30, description: 'Corte com acabamento impecável e finalização profissional.' },
   { id: '2', name: 'Barba Alinhada', price: 30, duration: 30, description: 'Modelagem de barba com toalha quente e hidratação.' },
   { id: '3', name: 'Sobrancelha', price: 20, duration: 30, description: 'Design e alinhamento de sobrancelha.' },
   { id: '4', name: 'Combo Corte + Barba', price: 65, duration: 60, description: 'O clássico completo para renovar o visual.' },
   { id: '5', name: 'Combo Completo', price: 80, duration: 90, description: 'Corte, Barba e Sobrancelha. Visual completo, você melhor!' },
+  { id: '6', name: 'Selagem', price: 100, duration: 60, description: 'Selagem capilar para reduzir o volume e alinhar os fios.' },
+  { id: '7', name: 'Cabelo + Selagem', price: 150, duration: 90, description: 'Corte completo com selagem capilar para um acabamento alinhado.' },
+  { id: '8', name: 'Cabelo, Barba e Selagem', price: 200, duration: 120, description: 'Corte, barba e selagem capilar em um único atendimento.' },
+  { id: '9', name: 'Barba e Selagem', price: 150, duration: 60, description: 'Barba alinhada com selagem capilar.' },
 ];
 
 export const DEFAULT_SPECIALS: DailySpecial[] = [

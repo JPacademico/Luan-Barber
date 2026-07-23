@@ -79,6 +79,7 @@ interface ServiceRow {
   duration_minutes: number;
   description: string | null;
   active: boolean;
+  sort_order: number;
 }
 
 // --- Mappers -----------------------------------------------------------------------------------
@@ -157,7 +158,8 @@ export const supabaseApi = {
    * `active` rows.
    */
   async fetchServices(): Promise<Service[]> {
-    const response = await request('/services?select=*&order=id.asc');
+    // sort_order is the admin panel's display order; id breaks ties deterministically.
+    const response = await request('/services?select=*&order=sort_order.asc,id.asc');
     const rows = (await response.json()) as ServiceRow[];
     return rows.map(rowToService);
   },
