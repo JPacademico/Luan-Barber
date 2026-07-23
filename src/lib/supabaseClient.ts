@@ -5,6 +5,7 @@ import type {
   DayScheduleOverride,
   PaymentMethod,
   Service,
+  ShopContent,
 } from '../types';
 
 /**
@@ -168,6 +169,17 @@ export const supabaseApi = {
     const response = await request('/day_overrides?select=*');
     const rows = (await response.json()) as OverrideRow[];
     return rows.map(rowToOverride);
+  },
+
+  /**
+   * The shared site content (owner, carousel, shop info) as the admin last saved it, or null if
+   * no admin has saved yet — in which case every device falls back to its identical local
+   * defaults, so they still agree.
+   */
+  async fetchShopContent(): Promise<Partial<ShopContent> | null> {
+    const response = await request('/shop_content?select=content&id=eq.default');
+    const rows = (await response.json()) as { content: Partial<ShopContent> }[];
+    return rows.length > 0 ? rows[0].content : null;
   },
 
   async insertBooking(booking: Booking): Promise<void> {

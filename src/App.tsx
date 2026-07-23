@@ -9,6 +9,7 @@ import { useAutoArchive } from './hooks/useAutoArchive';
 import { useCrossTabSync } from './hooks/useCrossTabSync';
 import { useBookingSync } from './hooks/useBookingSync';
 import { useServicesSync } from './hooks/useServicesSync';
+import { useShopContentSync } from './hooks/useShopContentSync';
 import { useApplyTheme } from './hooks/useApplyTheme';
 
 /**
@@ -28,6 +29,8 @@ function App() {
   useBookingSync();
   // Prices come from the database — the same rows Pix charges from — not from this device.
   useServicesSync();
+  // Owner/carousel/hours also come from the cloud, so every device shows the same content.
+  useShopContentSync();
   // Bookings are archived against the 22:00 cut-off for as long as the app stays open.
   useAutoArchive();
   // Keeps shop configuration (services, prices, hours) in sync across tabs.

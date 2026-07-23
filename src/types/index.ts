@@ -104,3 +104,14 @@ export interface CarouselImage {
   alt: string;
   order: number;
 }
+
+/**
+ * The admin-edited site content that syncs across devices as one document (the `shop_content`
+ * cloud table). Everything the "Conteúdo" panel writes — kept together because it's saved,
+ * fetched and stored as a whole. Services sync separately (their own table).
+ */
+export interface ShopContent {
+  owner: OwnerProfile;
+  carouselImages: CarouselImage[];
+  shopInfo: ShopInfo;
+}

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useShopStore } from '../../store/shopStore';
 import { toast } from 'sonner';
 import { Save, RefreshCw } from 'lucide-react';
+import { pushShopContentToBackend } from '../../lib/adminApi';
 
 export const ContentEditor: React.FC = () => {
   const { owner, carouselImages, updateOwner, updateCarouselImage, resetToDefaults, shopInfo, updateShopInfo } = useShopStore();
@@ -11,8 +12,10 @@ export const ContentEditor: React.FC = () => {
   const [clientsServed, setClientsServed] = useState(owner.clientsServed);
   const [heroImages, setHeroImages] = useState([...carouselImages].sort((a,b) => a.order - b.order));
   const [hours, setHours] = useState(shopInfo.workingHours);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    setIsSaving(true);
     try {
       updateOwner({ bio: bioText, title: ownerTitle, clientsServed });
 
@@ -22,10 +25,39 @@ export const ContentEditor: React.FC = () => {
 
       updateShopInfo({ workingHours: hours });
 
-      toast.success('Conteúdo salvo com sucesso');
+      // Zustand sets are synchronous, so the store now holds the merged content to push.
+      const { owner: nextOwner, carouselImages: nextCarousel, shopInfo: nextShopInfo } =
+        useShopStore.getState();
+      const outcome = await pushShopContentToBackend({
+        owner: nextOwner,
+        carouselImages: nextCarousel,
+        shopInfo: nextShopInfo,
+      });
+
+      if (outcome === 'synced' || outcome === 'skipped') {
+        toast.success('Conteúdo salvo com sucesso', {
+          description:
+            outcome === 'synced'
+              ? 'As alterações valem para todos os dispositivos.'
+              : undefined,
+        });
+      } else if (outcome === 'unauthorized') {
+        // The local save stuck, but the shared copy didn't — flag it, don't claim success.
+        toast.error('Salvo apenas neste aparelho — sessão expirada.', {
+          description: 'Saia e entre novamente no painel para publicar para todos.',
+          duration: 10000,
+        });
+      } else {
+        toast.error('Salvo apenas neste aparelho.', {
+          description: 'O servidor não confirmou; os outros dispositivos ainda veem o conteúdo antigo. Tente salvar de novo.',
+          duration: 10000,
+        });
+      }
     } catch (error) {
       toast.error('Erro ao salvar conteúdo');
       console.error(error);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -51,12 +83,13 @@ export const ContentEditor: React.FC = () => {
             <RefreshCw size={16} />
             <span className="hidden sm:inline">Restaurar Padrões</span>
           </button>
-          <button 
+          <button
             onClick={handleSave}
-            className="px-4 py-2 bg-brand-gold text-brand-black text-sm font-bold rounded hover:bg-brand-gold/90 flex items-center space-x-2 transition-colors"
+            disabled={isSaving}
+            className="px-4 py-2 bg-brand-gold text-brand-black text-sm font-bold rounded hover:bg-brand-gold/90 flex items-center space-x-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Save size={16} />
-            <span>Salvar Alterações</span>
+            <span>{isSaving ? 'Salvando…' : 'Salvar Alterações'}</span>
           </button>
         </div>
       </div>

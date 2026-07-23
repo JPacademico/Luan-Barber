@@ -1,5 +1,5 @@
 import { API_BASE_URL, IS_BACKEND_ENABLED } from './env';
-import type { Service } from '../types';
+import type { Service, ShopContent } from '../types';
 
 /**
  * Calls to the admin-only Edge Functions.
@@ -98,6 +98,36 @@ export const pushServicesToBackend = async (services: Service[]): Promise<Servic
     return 'failed';
   } catch (error) {
     console.error('[admin] update-services unreachable', error);
+    return 'failed';
+  }
+};
+
+/**
+ * Pushes the shared site content (owner, carousel, shop info) so every device shows the same
+ * thing — most importantly the working hours that drive the client booking grid.
+ */
+export const pushShopContentToBackend = async (
+  content: ShopContent
+): Promise<ServiceSyncOutcome> => {
+  if (!IS_BACKEND_ENABLED) return 'skipped';
+
+  const password = readAdminPassword();
+  if (!password) return 'unauthorized';
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/update-content`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password, content }),
+    });
+
+    if (response.ok) return 'synced';
+    if (response.status === 401) return 'unauthorized';
+
+    console.error('[admin] update-content failed', response.status, await response.text().catch(() => ''));
+    return 'failed';
+  } catch (error) {
+    console.error('[admin] update-content unreachable', error);
     return 'failed';
   }
 };

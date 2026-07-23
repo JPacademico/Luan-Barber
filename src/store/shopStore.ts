@@ -25,6 +25,8 @@ interface ShopState {
   resetToDefaults: () => void;
   /** Replaces the local catalogue with the database's, when cloud sync is configured. */
   syncServicesFromCloud: () => Promise<void>;
+  /** Pulls the shared site content (owner, carousel, shop info) from the cloud. */
+  syncShopContentFromCloud: () => Promise<void>;
 }
 
 export const useShopStore = create<ShopState>()(
@@ -90,6 +92,31 @@ export const useShopStore = create<ShopState>()(
           if (services.length > 0) set({ services });
         } catch (error) {
           console.error('[shop] failed to load services from cloud', error);
+        }
+      },
+
+      /**
+       * The shared site content is the source of truth, so a client's booking grid uses the hours
+       * Luan set, not their own device's defaults. Each field is merged onto its default, so a
+       * stored document that predates a newly-added field never surfaces `undefined`.
+       *
+       * When no admin has saved yet the cloud returns null and the local defaults are kept — never
+       * overwritten with blanks — so an edit made before this feature survives until it is re-saved.
+       */
+      syncShopContentFromCloud: async () => {
+        if (!IS_CLOUD_ENABLED) return;
+
+        try {
+          const remote = await supabaseApi.fetchShopContent();
+          if (!remote) return;
+
+          set((state) => ({
+            owner: remote.owner ? { ...DEFAULT_OWNER, ...remote.owner } : state.owner,
+            carouselImages: remote.carouselImages ?? state.carouselImages,
+            shopInfo: remote.shopInfo ? { ...DEFAULT_SHOP_INFO, ...remote.shopInfo } : state.shopInfo,
+          }));
+        } catch (error) {
+          console.error('[shop] failed to load content from cloud', error);
         }
       },
     }),
