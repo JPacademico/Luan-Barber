@@ -18,15 +18,15 @@ export const LocationSection: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-12">
           
           {/* Info Cards */}
-          <div className="lg:col-span-1 flex flex-col space-y-6">
+          <div className="lg:col-span-1 flex flex-col space-y-4">
             
             {/* Address Card */}
-            <div className="bg-brand-cream dark:bg-[#1a1a1a] p-8 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm flex items-start gap-4 hover:border-brand-gold transition-colors duration-300">
-              <div className="p-3 bg-white dark:bg-black rounded-full shadow-sm text-brand-gold">
-                <MapPin className="w-6 h-6" />
+            <div className="bg-brand-cream dark:bg-[#1a1a1a] p-5 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm flex items-start gap-3 hover:border-brand-gold transition-colors duration-300">
+              <div className="p-2.5 bg-white dark:bg-black rounded-full shadow-sm text-brand-gold">
+                <MapPin className="w-5 h-5" />
               </div>
               <div>
-                <h4 className="font-display font-bold text-lg text-brand-black dark:text-white mb-2">Endereço</h4>
+                <h4 className="font-display font-bold text-base text-brand-black dark:text-white mb-1">Endereço</h4>
                 <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed mb-3">
                   {shopInfo.address}
                 </p>
@@ -42,12 +42,12 @@ export const LocationSection: React.FC = () => {
             </div>
 
             {/* Contact Card */}
-            <div className="bg-brand-cream dark:bg-[#1a1a1a] p-8 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm flex items-start gap-4 hover:border-brand-gold transition-colors duration-300">
-              <div className="p-3 bg-white dark:bg-black rounded-full shadow-sm text-brand-gold">
-                <Phone className="w-6 h-6" />
+            <div className="bg-brand-cream dark:bg-[#1a1a1a] p-5 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm flex items-start gap-3 hover:border-brand-gold transition-colors duration-300">
+              <div className="p-2.5 bg-white dark:bg-black rounded-full shadow-sm text-brand-gold">
+                <Phone className="w-5 h-5" />
               </div>
               <div>
-                <h4 className="font-display font-bold text-lg text-brand-black dark:text-white mb-2">Contato</h4>
+                <h4 className="font-display font-bold text-base text-brand-black dark:text-white mb-1">Contato</h4>
                 <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed mb-3">
                   {shopInfo.phone}
                 </p>
@@ -63,12 +63,12 @@ export const LocationSection: React.FC = () => {
             </div>
 
             {/* Hours Card */}
-            <div className="bg-brand-cream dark:bg-[#1a1a1a] p-8 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm flex items-start gap-4 hover:border-brand-gold transition-colors duration-300">
-              <div className="p-3 bg-white dark:bg-black rounded-full shadow-sm text-brand-gold">
-                <Clock className="w-6 h-6" />
+            <div className="bg-brand-cream dark:bg-[#1a1a1a] p-5 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm flex items-start gap-3 hover:border-brand-gold transition-colors duration-300">
+              <div className="p-2.5 bg-white dark:bg-black rounded-full shadow-sm text-brand-gold">
+                <Clock className="w-5 h-5" />
               </div>
               <div>
-                <h4 className="font-display font-bold text-lg text-brand-black dark:text-white mb-2">Horários</h4>
+                <h4 className="font-display font-bold text-base text-brand-black dark:text-white mb-1">Horários</h4>
                 <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
                   Segunda a Sábado<br/>
                   <span className="font-bold">{shopInfo.workingHours.start.toString().padStart(2, '0')}:00 - {shopInfo.workingHours.end.toString().padStart(2, '0')}:00</span>

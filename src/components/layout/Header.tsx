@@ -14,7 +14,6 @@ interface NavLink {
 const NAV_LINKS: NavLink[] = [
   { label: 'Início', path: '/', sectionId: 'hero' },
   { label: 'Serviços', path: '/booking', sectionId: 'services' },
-  { label: 'Promoções', path: '/', sectionId: 'specials' },
   { label: 'Sobre', path: '/', sectionId: 'about' },
   { label: 'Localização', path: '/', sectionId: 'location' },
 ];

@@ -1,6 +1,5 @@
 import React from 'react';
 import { HeroCarousel } from '../components/sections/HeroCarousel';
-import { DailySpecials } from '../components/sections/DailySpecials';
 import { OwnerSection } from '../components/sections/OwnerSection';
 import { LocationSection } from '../components/sections/LocationSection';
 import { BookingCallout } from '../components/sections/BookingCallout';
@@ -17,9 +16,8 @@ export const HomePage: React.FC = () => {
   return (
     <>
       <HeroCarousel />
-      <DailySpecials />
-      <OwnerSection />
       <BookingCallout />
+      <OwnerSection />
       <LocationSection />
     </>
   );

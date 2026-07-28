@@ -1,7 +1,7 @@
 import React from 'react';
 import { useShopStore } from '../../store/shopStore';
 import { SectionHeading } from '../ui/SectionHeading';
-import { Award, Star } from 'lucide-react';
+import { Star } from 'lucide-react';
 
 /** Shown while the real /owner.jpg has not been dropped into /public yet. */
 const PORTRAIT_FALLBACK =
@@ -15,9 +15,8 @@ export const OwnerSection: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
           
-          {/* Left Column: Image & Certificates */}
-          <div className="lg:col-span-5 flex flex-col space-y-8">
-            {/* Owner Portrait */}
+          {/* Left Column: Portrait */}
+          <div className="lg:col-span-5">
             <div className="relative w-full aspect-[4/5] rounded-2xl overflow-hidden shadow-2xl group">
               <div className="absolute inset-0 bg-brand-gold mix-blend-multiply opacity-20 group-hover:opacity-0 transition-opacity duration-500 z-10"></div>
               <img
@@ -33,29 +32,6 @@ export const OwnerSection: React.FC = () => {
               />
               {/* Decorative Frame */}
               <div className="absolute inset-4 border border-brand-gold/50 rounded-xl z-20 pointer-events-none"></div>
-            </div>
-
-            {/* Certificates Grid */}
-            <div>
-              <h4 className="text-sm font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-4 flex items-center gap-2">
-                <Award className="w-4 h-4 text-brand-gold" />
-                Certificações
-              </h4>
-              <div className="grid grid-cols-2 gap-4">
-                {owner.certificates.map((cert) => (
-                  <div key={cert.id} className="relative group overflow-hidden rounded-lg aspect-video shadow-md">
-                    <img 
-                      src={cert.imageUrl} 
-                      alt={cert.title} 
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                    />
-                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col items-center justify-center text-center p-2">
-                      <span className="text-white text-xs font-bold">{cert.title}</span>
-                      <span className="text-brand-gold text-[10px]">{cert.year}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
             </div>
           </div>
 
