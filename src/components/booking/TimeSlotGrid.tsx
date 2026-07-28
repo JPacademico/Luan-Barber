@@ -9,7 +9,7 @@ import {
   occupiedSlotsFor,
   slotsRequired,
 } from '../../lib/timeSlots';
-import { formatHoursRange, hasCustomHours, resolveWorkingHours } from '../../lib/schedule';
+import { baseHoursForDate, formatHoursRange, hasCustomHours, resolveWorkingHours } from '../../lib/schedule';
 import type { Service } from '../../types';
 
 interface TimeSlotGridProps {
@@ -38,11 +38,16 @@ export const TimeSlotGrid: React.FC<TimeSlotGridProps> = ({
   const requiredSlots = slotsRequired(durationMinutes);
 
   const override = dayOverrides[dateStr];
-  const isSpecialDay = hasCustomHours(shopInfo.workingHours, override);
+  // Saturday's window differs from the weekday one, so resolve against the day-appropriate base.
+  const baseHours = useMemo(
+    () => baseHoursForDate(shopInfo, selectedDate),
+    [shopInfo, selectedDate]
+  );
+  const isSpecialDay = hasCustomHours(baseHours, override);
 
   const workingHours = useMemo(
-    () => resolveWorkingHours(shopInfo.workingHours, override),
-    [shopInfo.workingHours, override]
+    () => resolveWorkingHours(baseHours, override),
+    [baseHours, override]
   );
 
   const slots = useMemo(() => generateTimeSlots(workingHours), [workingHours]);

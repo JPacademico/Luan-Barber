@@ -18,6 +18,7 @@ import { ptBR } from 'date-fns/locale';
 import { useBookingStore } from '../../store/bookingStore';
 import { useShopStore } from '../../store/shopStore';
 import {
+  baseHoursForDate,
   describeDaySchedule,
   hasCustomHours,
   isEmptyWindow,
@@ -74,7 +75,7 @@ export const BookingCalendar: React.FC<BookingCalendarProps> = ({ selectedDate, 
     if (override?.isClosed) return false;
 
     // A custom window can be narrowed until nothing is bookable; treat that as closed.
-    return !isEmptyWindow(resolveWorkingHours(shopInfo.workingHours, override));
+    return !isEmptyWindow(resolveWorkingHours(baseHoursForDate(shopInfo, dateToRender), override));
   };
 
   const weekDays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
@@ -127,7 +128,8 @@ export const BookingCalendar: React.FC<BookingCalendarProps> = ({ selectedDate, 
           const dateStr = format(date, 'yyyy-MM-dd');
           const override = dayOverrides[dateStr];
           const closed = override?.isClosed ?? false;
-          const isSpecialDay = selectable && hasCustomHours(shopInfo.workingHours, override);
+          const baseHours = baseHoursForDate(shopInfo, date);
+          const isSpecialDay = selectable && hasCustomHours(baseHours, override);
 
           let btnClass = "relative h-10 w-full rounded-md flex items-center justify-center text-sm font-medium transition-all ";
 
@@ -158,7 +160,7 @@ export const BookingCalendar: React.FC<BookingCalendarProps> = ({ selectedDate, 
               className={btnClass}
               title={
                 selectable || closed
-                  ? describeDaySchedule(shopInfo.workingHours, override)
+                  ? describeDaySchedule(baseHours, override)
                   : undefined
               }
             >

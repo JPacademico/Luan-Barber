@@ -4,6 +4,9 @@ import { toast } from 'sonner';
 import { Save, RefreshCw } from 'lucide-react';
 import { pushShopContentToBackend } from '../../lib/adminApi';
 
+/** Selectable hours, 06:00–23:00. Invalid open/close combinations are caught on save. */
+const HOUR_OPTIONS = Array.from({ length: 18 }, (_, i) => i + 6);
+
 export const ContentEditor: React.FC = () => {
   const { owner, carouselImages, updateOwner, updateCarouselImage, resetToDefaults, shopInfo, updateShopInfo } = useShopStore();
 
@@ -12,9 +15,22 @@ export const ContentEditor: React.FC = () => {
   const [clientsServed, setClientsServed] = useState(owner.clientsServed);
   const [heroImages, setHeroImages] = useState([...carouselImages].sort((a,b) => a.order - b.order));
   const [hours, setHours] = useState(shopInfo.workingHours);
+  const [saturdayHours, setSaturdayHours] = useState(shopInfo.saturdayHours);
+  // Editing the weekday hours must NOT touch Saturday's earlier-closing rule unless this is on.
+  const [editSaturday, setEditSaturday] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   const handleSave = async () => {
+    // A window with closing <= opening would leave a day with zero bookable slots.
+    if (hours.end <= hours.start) {
+      toast.error('O fechamento (seg–sex) deve ser depois da abertura.');
+      return;
+    }
+    if (editSaturday && saturdayHours.end <= saturdayHours.start) {
+      toast.error('O fechamento do sábado deve ser depois da abertura.');
+      return;
+    }
+
     setIsSaving(true);
     try {
       updateOwner({ bio: bioText, title: ownerTitle, clientsServed });
@@ -23,7 +39,8 @@ export const ContentEditor: React.FC = () => {
         updateCarouselImage(idx, { url: img.url });
       });
 
-      updateShopInfo({ workingHours: hours });
+      // Saturday is left exactly as stored unless the admin opted to change it.
+      updateShopInfo(editSaturday ? { workingHours: hours, saturdayHours } : { workingHours: hours });
 
       // Zustand sets are synchronous, so the store now holds the merged content to push.
       const { owner: nextOwner, carouselImages: nextCarousel, shopInfo: nextShopInfo } =
@@ -163,7 +180,9 @@ export const ContentEditor: React.FC = () => {
       {/* Working Hours Editor */}
       <div className="bg-[#1a1a1a] p-6 rounded-xl border border-gray-800">
         <h4 className="text-white font-bold mb-4 border-b border-gray-800 pb-2">Configuração de Horários</h4>
-        
+
+        {/* Monday–Friday */}
+        <p className="text-xs font-semibold uppercase tracking-wider text-brand-gold mb-2">Segunda a Sexta</p>
         <div className="grid grid-cols-2 gap-6">
           <div>
             <label className="block text-xs text-gray-500 mb-1">Abertura (Hora)</label>
@@ -172,7 +191,7 @@ export const ContentEditor: React.FC = () => {
               onChange={(e) => setHours({ ...hours, start: parseInt(e.target.value) })}
               className="w-full bg-black border border-gray-800 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-gold"
             >
-              {Array.from({length: 12}, (_, i) => i + 6).map(h => (
+              {HOUR_OPTIONS.map(h => (
                 <option key={h} value={h}>{h.toString().padStart(2, '0')}:00</option>
               ))}
             </select>
@@ -184,13 +203,60 @@ export const ContentEditor: React.FC = () => {
               onChange={(e) => setHours({ ...hours, end: parseInt(e.target.value) })}
               className="w-full bg-black border border-gray-800 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-gold"
             >
-              {Array.from({length: 12}, (_, i) => i + 12).map(h => (
+              {HOUR_OPTIONS.map(h => (
                 <option key={h} value={h}>{h.toString().padStart(2, '0')}:00</option>
               ))}
             </select>
           </div>
         </div>
-        <p className="text-xs text-gray-500 mt-3">Nota: O sistema gera automaticamente intervalos de 30 minutos entre a abertura e fechamento.</p>
+
+        {/* Saturday — left untouched unless the admin opts in */}
+        <div className="mt-6 pt-5 border-t border-gray-800">
+          <label className="flex items-center gap-3 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={editSaturday}
+              onChange={(e) => setEditSaturday(e.target.checked)}
+              className="h-4 w-4 accent-brand-gold"
+            />
+            <span className="text-sm text-white font-medium">Alterar também o horário de sábado</span>
+          </label>
+          <p className="text-xs text-gray-500 mt-1">
+            Desmarcado, salvar mantém o sábado como está
+            {' '}({shopInfo.saturdayHours.start.toString().padStart(2, '0')}:00 – {shopInfo.saturdayHours.end.toString().padStart(2, '0')}:00).
+          </p>
+
+          {editSaturday && (
+            <div className="grid grid-cols-2 gap-6 mt-4">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Sábado — Abertura</label>
+                <select
+                  value={saturdayHours.start}
+                  onChange={(e) => setSaturdayHours({ ...saturdayHours, start: parseInt(e.target.value) })}
+                  className="w-full bg-black border border-gray-800 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-gold"
+                >
+                  {HOUR_OPTIONS.map(h => (
+                    <option key={h} value={h}>{h.toString().padStart(2, '0')}:00</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Sábado — Fechamento</label>
+                <select
+                  value={saturdayHours.end}
+                  onChange={(e) => setSaturdayHours({ ...saturdayHours, end: parseInt(e.target.value) })}
+                  className="w-full bg-black border border-gray-800 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-brand-gold"
+                >
+                  {HOUR_OPTIONS.map(h => (
+                    <option key={h} value={h}>{h.toString().padStart(2, '0')}:00</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <p className="text-xs text-gray-500 mt-4">Nota: O sistema gera automaticamente intervalos de 30 minutos entre a abertura e fechamento. Domingo permanece fechado.</p>
       </div>
 
     </div>

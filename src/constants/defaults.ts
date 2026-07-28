@@ -76,9 +76,16 @@ export const DEFAULT_SHOP_INFO: ShopInfo = {
   mapEmbedUrl: buildMapEmbedUrl(SHOP_MAP_QUERY),
   // Placeholder key for the simulated Pix checkout. No gateway is wired up.
   pixKey: '5579988176953',
+  // Monday–Friday.
   workingHours: {
     start: 9, // 09:00
-    end: 18, // 18:00
+    end: 20, // 20:00
+  },
+  // Saturday closes earlier. A brand-new field, so every stored/synced ShopInfo backfills it from
+  // here on merge — Saturday becomes 09:00–17:00 everywhere without needing an admin save first.
+  saturdayHours: {
+    start: 9, // 09:00
+    end: 17, // 17:00
   },
 };
 

@@ -5,6 +5,23 @@ export type WorkingHours = ShopInfo['workingHours'];
 /** Sunday. The shop never opens, regardless of overrides. */
 const WEEKLY_CLOSED_WEEKDAY = 0;
 
+/** Saturday. Open, but on its own (earlier-closing) window rather than the weekday one. */
+const SATURDAY_WEEKDAY = 6;
+
+/**
+ * The shop's default window FOR A GIVEN DATE, before any per-date override.
+ *
+ * Saturdays use `saturdayHours` (they close earlier); Monday–Friday use `workingHours`. Sunday is
+ * handled by isWeeklyClosedDay, so its hours are never requested. Every date-specific caller must
+ * resolve through this rather than reading `shopInfo.workingHours` directly, or a client would be
+ * offered weekday hours on a Saturday. Falls back to the weekday window if `saturdayHours` is
+ * somehow absent (e.g. a stored ShopInfo that predates the field, before its merge backfills it).
+ */
+export const baseHoursForDate = (shopInfo: ShopInfo, date: Date): WorkingHours =>
+  date.getDay() === SATURDAY_WEEKDAY
+    ? shopInfo.saturdayHours ?? shopInfo.workingHours
+    : shopInfo.workingHours;
+
 /** Local calendar day as YYYY-MM-DD. Avoids the UTC shift of toISOString(). */
 export const toDateKey = (date: Date): string => {
   const year = date.getFullYear();

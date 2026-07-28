@@ -5,7 +5,7 @@ import { CalendarOff, Clock, RotateCcw, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useBookingStore } from '../../store/bookingStore';
 import { useShopStore } from '../../store/shopStore';
-import { formatHour, formatHoursRange, isEmptyWindow, resolveWorkingHours } from '../../lib/schedule';
+import { baseHoursForDate, formatHour, formatHoursRange, isEmptyWindow, resolveWorkingHours } from '../../lib/schedule';
 
 interface DayScheduleEditorProps {
   /** YYYY-MM-DD of the day being edited. */
@@ -25,15 +25,16 @@ export const DayScheduleEditor: React.FC<DayScheduleEditorProps> = ({ date, onCl
   const getBookingsForDate = useBookingStore((state) => state.getBookingsForDate);
   const shopInfo = useShopStore((state) => state.shopInfo);
 
+  const parsedDate = parseISO(date);
   const override = getDayOverride(date);
-  const defaultHours = shopInfo.workingHours;
+  // A Saturday's override is relative to Saturday's own hours, not the weekday window.
+  const defaultHours = baseHoursForDate(shopInfo, parsedDate);
   const resolved = resolveWorkingHours(defaultHours, override);
 
   const [startHour, setStartHour] = useState(resolved.start);
   const [endHour, setEndHour] = useState(resolved.end);
 
   const bookingsCount = getBookingsForDate(date).length;
-  const parsedDate = parseISO(date);
 
   const startOptions = useMemo(
     () => buildHourOptions(defaultHours.start, defaultHours.end - 1),

@@ -17,6 +17,7 @@ import { useBookingStore } from '../../store/bookingStore';
 import { useShopStore } from '../../store/shopStore';
 import { DayScheduleEditor } from './DayScheduleEditor';
 import {
+  baseHoursForDate,
   formatHoursRange,
   hasCustomHours,
   isWeeklyClosedDay,
@@ -102,7 +103,8 @@ export const CalendarManager: React.FC = () => {
               const isSunday = isWeeklyClosedDay(date);
               const override = dayOverrides[dateStr];
               const isClosed = override?.isClosed ?? false;
-              const isSpecial = hasCustomHours(shopInfo.workingHours, override);
+              const baseHours = baseHoursForDate(shopInfo, date);
+              const isSpecial = hasCustomHours(baseHours, override);
               const isSelected = selectedDate === dateStr;
               const bookingsCount = getBookingsForDate(dateStr).length;
               const isDisabled = isPast || isSunday;
@@ -136,7 +138,7 @@ export const CalendarManager: React.FC = () => {
                   className={btnClass}
                   title={
                     isSpecial
-                      ? formatHoursRange(resolveWorkingHours(shopInfo.workingHours, override))
+                      ? formatHoursRange(resolveWorkingHours(baseHours, override))
                       : undefined
                   }
                 >
@@ -231,7 +233,7 @@ export const CalendarManager: React.FC = () => {
                           <span className="block text-slate-500 text-xs truncate">
                             {override.isClosed
                               ? 'Fechado o dia todo'
-                              : formatHoursRange(resolveWorkingHours(shopInfo.workingHours, override))}
+                              : formatHoursRange(resolveWorkingHours(baseHoursForDate(shopInfo, date), override))}
                           </span>
                         </span>
                       </span>

@@ -70,8 +70,12 @@ export const LocationSection: React.FC = () => {
               <div>
                 <h4 className="font-display font-bold text-base text-brand-black dark:text-white mb-1">Horários</h4>
                 <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
-                  Segunda a Sábado<br/>
+                  Segunda a Sexta<br/>
                   <span className="font-bold">{shopInfo.workingHours.start.toString().padStart(2, '0')}:00 - {shopInfo.workingHours.end.toString().padStart(2, '0')}:00</span>
+                </p>
+                <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed mt-1">
+                  Sábado<br/>
+                  <span className="font-bold">{shopInfo.saturdayHours.start.toString().padStart(2, '0')}:00 - {shopInfo.saturdayHours.end.toString().padStart(2, '0')}:00</span>
                 </p>
                 <p className="text-gray-500 dark:text-gray-500 text-xs mt-2 italic">
                   Domingo fechado

@@ -53,8 +53,12 @@ export const Footer: React.FC = () => {
           <div className="flex flex-col items-center md:items-start space-y-4">
             <h4 className="font-display font-bold text-xl text-white mb-2">Horário de Funcionamento</h4>
             <p className="text-sm text-gray-300">
-              Segunda a Sábado<br/>
+              Segunda a Sexta<br/>
               {shopInfo.workingHours.start.toString().padStart(2, '0')}:00 às {shopInfo.workingHours.end.toString().padStart(2, '0')}:00
+            </p>
+            <p className="text-sm text-gray-300">
+              Sábado<br/>
+              {shopInfo.saturdayHours.start.toString().padStart(2, '0')}:00 às {shopInfo.saturdayHours.end.toString().padStart(2, '0')}:00
             </p>
             <p className="text-sm text-brand-gold mt-2">
               Domingo - Fechado

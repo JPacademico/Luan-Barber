@@ -92,9 +92,15 @@ export interface ShopInfo {
   instagramHandle: string;
   mapEmbedUrl: string;
   pixKey: string;
+  /** Monday–Friday hours (also the general default). Saturday has its own; Sunday is closed. */
   workingHours: {
     start: number; // 9
-    end: number; // 18
+    end: number; // 20
+  };
+  /** Saturday closes earlier, so it carries its own window independent of the weekday one. */
+  saturdayHours: {
+    start: number; // 9
+    end: number; // 17
   };
 }
 

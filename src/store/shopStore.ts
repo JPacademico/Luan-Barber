@@ -122,7 +122,9 @@ export const useShopStore = create<ShopState>()(
     }),
     {
       name: SHOP_STORAGE_KEY,
-      version: 5,
+      // v6 added shopInfo.saturdayHours. The shopInfo merge below spreads DEFAULT_SHOP_INFO first,
+      // so a persisted shopInfo without the field is backfilled to the 09:00–17:00 default.
+      version: 6,
       migrate: (persistedState, version) => {
         const state = persistedState as Partial<ShopState>;
 

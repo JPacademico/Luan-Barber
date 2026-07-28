@@ -7,7 +7,7 @@ import { bookingFormSchema, type BookingFormData } from '../../lib/validations';
 import { useBookingStore } from '../../store/bookingStore';
 import { useShopStore } from '../../store/shopStore';
 import { isRangeAvailable } from '../../lib/timeSlots';
-import { resolveWorkingHours } from '../../lib/schedule';
+import { baseHoursForDate, resolveWorkingHours } from '../../lib/schedule';
 import type { Booking, PaymentMethod, Service } from '../../types';
 import { PaymentMethodSelector } from './PaymentMethodSelector';
 import { PixPaymentModal } from './PixPaymentModal';
@@ -67,7 +67,7 @@ export const BookingForm: React.FC<BookingFormProps> = ({
     const stillAvailable = isRangeAvailable({
       startTime: selectedTime,
       durationMinutes: selectedService.duration,
-      workingHours: resolveWorkingHours(shopInfo.workingHours, getDayOverride(dateStr)),
+      workingHours: resolveWorkingHours(baseHoursForDate(shopInfo, selectedDate), getDayOverride(dateStr)),
       occupied: getOccupiedSlots(dateStr),
       isToday: dateStr === format(new Date(), 'yyyy-MM-dd'),
     });
