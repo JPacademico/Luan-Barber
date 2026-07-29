@@ -32,7 +32,13 @@ export const AdminLayout: React.FC = () => {
         and the action cluster (fixed-size icons, never shrinks). On mobile every action collapses
         to an icon and the title drops to one line, so nothing overlaps at 360px.
       */}
-      <header className="bg-brand-gray border-b border-gray-800 py-3 sm:py-4 px-4 sm:px-6 flex justify-between items-center gap-3 sticky top-0 z-50">
+      {/*
+        Sticky header sits under the phone's status bar (clock/battery/notch) on the installed
+        admin PWA, since viewport-fit=cover lets content draw under it. env(safe-area-inset-top)
+        is the notch/status-bar height (0 on ordinary browsers), stacked on top of the usual
+        padding so the title/actions clear it instead of colliding with system icons.
+      */}
+      <header className="bg-brand-gray border-b border-gray-800 pb-3 sm:pb-4 pt-[calc(0.75rem+env(safe-area-inset-top))] sm:pt-[calc(1rem+env(safe-area-inset-top))] px-4 sm:px-6 flex justify-between items-center gap-3 sticky top-0 z-50">
         <div className="flex items-center gap-2 sm:gap-4 min-w-0">
           <Link
             to="/"

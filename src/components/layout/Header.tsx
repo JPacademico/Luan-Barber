@@ -64,10 +64,14 @@ export const Header: React.FC = () => {
 
   return (
     <header
+      // Fixed header sits under the phone's status bar (clock/battery/notch) on an installed PWA,
+      // since viewport-fit=cover lets content draw under it. env(safe-area-inset-top) is the
+      // notch/status-bar height (0 on ordinary browsers/devices), added on top of the usual
+      // padding so the logo and nav clear it instead of colliding with system icons.
       className={`fixed top-0 w-full z-50 transition-all duration-300 ${
         isScrolled || isMobileMenuOpen
-          ? 'bg-white/90 dark:bg-brand-black/90 backdrop-blur-md shadow-sm py-3'
-          : 'bg-transparent py-5'
+          ? 'bg-white/90 dark:bg-brand-black/90 backdrop-blur-md shadow-sm pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))]'
+          : 'bg-transparent pb-5 pt-[calc(1.25rem+env(safe-area-inset-top))]'
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
