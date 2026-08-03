@@ -324,6 +324,7 @@ export const AppointmentsPanel: React.FC = () => {
                     onVerify={() => handleVerifyPayment(booking)}
                     onComplete={() => handleComplete(booking)}
                     onCancel={() => setCancelTarget({ booking, service })}
+                    onWhatsApp={() => openConfirmationWhatsApp(booking)}
                   />
                 </div>
               </article>
