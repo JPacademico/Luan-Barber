@@ -87,7 +87,23 @@
 }
 
 @layer components {
-  
+
+  /*
+   * Modal panel height. `vh` on mobile measures the viewport with the browser chrome *retracted*,
+   * so a 90vh panel can sit taller than the space actually visible while the address bar is up —
+   * the footer buttons end up under it. `dvh` tracks the live viewport; the plain `vh` rule stays
+   * as the fallback for anything that doesn't support it.
+   */
+  .modal-panel {
+    max-height: 90vh;
+  }
+
+  @supports (max-height: 90dvh) {
+    .modal-panel {
+      max-height: 90dvh;
+    }
+  }
+
   .input-field {
     @apply w-full px-4 py-3 bg-white dark:bg-brand-darkgray border border-gray-300 dark:border-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-brand-gold focus:border-transparent text-brand-black dark:text-brand-cream transition-colors placeholder:text-gray-400;
   }

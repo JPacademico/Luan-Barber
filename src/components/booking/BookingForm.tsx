@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { bookingFormSchema, type BookingFormData } from '../../lib/validations';
 import { useBookingStore } from '../../store/bookingStore';
@@ -11,6 +12,7 @@ import { baseHoursForDate, resolveWorkingHours } from '../../lib/schedule';
 import type { Booking, PaymentMethod, Service } from '../../types';
 import { PaymentMethodSelector } from './PaymentMethodSelector';
 import { PixPaymentModal } from './PixPaymentModal';
+import { ConfirmBookingDialog } from './ConfirmBookingDialog';
 
 interface BookingFormProps {
   selectedService: Service | null;
@@ -29,6 +31,21 @@ interface PendingPixPayment {
   scheduledFor: string;
 }
 
+/**
+ * Snapshot of what the confirmation dialog is asking about. Frozen on purpose: the client can
+ * still change the service or slot behind the dialog, and booking anything other than the exact
+ * thing they were shown would be a silent bait-and-switch.
+ */
+interface PendingConfirmation {
+  data: BookingFormData;
+  service: Service;
+  date: Date;
+  dateStr: string;
+  time: string;
+  dateLabel: string;
+  weekdayLabel: string;
+}
+
 export const BookingForm: React.FC<BookingFormProps> = ({
   selectedService,
   selectedDate,
@@ -43,6 +60,13 @@ export const BookingForm: React.FC<BookingFormProps> = ({
   const getDayOverride = useBookingStore((state) => state.getDayOverride);
   const shopInfo = useShopStore((state) => state.shopInfo);
   const [pendingPixPayment, setPendingPixPayment] = useState<PendingPixPayment | null>(null);
+  const [pendingConfirmation, setPendingConfirmation] = useState<PendingConfirmation | null>(null);
+
+  // Guards against a double-booking from a double-tap. On a slow phone the browser can dispatch a
+  // second queued click before React commits the unmount of the dialog, and the stale closure would
+  // happily write a second booking. The latch is armed for the lifetime of one confirmation and is
+  // only cleared when a *new* dialog is opened, so it survives that window.
+  const isCommittingRef = useRef(false);
 
   const {
     register,
@@ -54,6 +78,28 @@ export const BookingForm: React.FC<BookingFormProps> = ({
     mode: 'onChange',
   });
 
+  /**
+   * Is the whole span the service needs still free? Between picking a slot and confirming it,
+   * another device may have taken part of it. The UI already hides conflicts; this guards the race.
+   */
+  const isSlotStillFree = (service: Service, date: Date, dateStr: string, time: string): boolean =>
+    isRangeAvailable({
+      startTime: time,
+      durationMinutes: service.duration,
+      workingHours: resolveWorkingHours(baseHoursForDate(shopInfo, date), getDayOverride(dateStr)),
+      occupied: getOccupiedSlots(dateStr),
+      isToday: dateStr === format(new Date(), 'yyyy-MM-dd'),
+    });
+
+  const warnSlotTaken = () =>
+    toast.error('Este horário acabou de ser ocupado.', {
+      description: 'Escolha outro horário para continuar.',
+    });
+
+  /**
+   * Submitting no longer books anything — it opens the confirmation dialog. The slot is checked
+   * here too so a client is never asked to confirm a time that is already gone.
+   */
   const onSubmit = (data: BookingFormData) => {
     if (!selectedService || !selectedDate || !selectedTime) {
       toast.error('Por favor, selecione o serviço, data e horário.');
@@ -62,33 +108,49 @@ export const BookingForm: React.FC<BookingFormProps> = ({
 
     const dateStr = format(selectedDate, 'yyyy-MM-dd');
 
-    // Re-check the range at submit time: between selecting the slot and confirming, another
-    // device may have taken part of it. The UI already hides conflicts, but this guards the race.
-    const stillAvailable = isRangeAvailable({
-      startTime: selectedTime,
-      durationMinutes: selectedService.duration,
-      workingHours: resolveWorkingHours(baseHoursForDate(shopInfo, selectedDate), getDayOverride(dateStr)),
-      occupied: getOccupiedSlots(dateStr),
-      isToday: dateStr === format(new Date(), 'yyyy-MM-dd'),
-    });
-
-    if (!stillAvailable) {
-      toast.error('Este horário acabou de ser ocupado.', {
-        description: 'Escolha outro horário para continuar.',
-      });
+    if (!isSlotStillFree(selectedService, selectedDate, dateStr, selectedTime)) {
+      warnSlotTaken();
       return;
     }
 
-    const scheduledFor = `${format(selectedDate, 'dd/MM/yyyy')} às ${selectedTime}`;
+    // Opening a fresh dialog is the one place the commit latch is released.
+    isCommittingRef.current = false;
+
+    setPendingConfirmation({
+      data,
+      service: selectedService,
+      date: selectedDate,
+      dateStr,
+      time: selectedTime,
+      dateLabel: format(selectedDate, 'dd/MM/yyyy'),
+      weekdayLabel: format(selectedDate, 'EEEE', { locale: ptBR }),
+    });
+  };
+
+  /** The only place a booking is actually written. Reached solely by an explicit tap on Confirmar. */
+  const handleConfirmBooking = () => {
+    if (!pendingConfirmation || isCommittingRef.current) return;
+    isCommittingRef.current = true;
+
+    const { data, service, date, dateStr, time } = pendingConfirmation;
+
+    // Checked again at the real commit point: the dialog may have sat open for a while.
+    if (!isSlotStillFree(service, date, dateStr, time)) {
+      setPendingConfirmation(null);
+      warnSlotTaken();
+      return;
+    }
+
+    const scheduledFor = `${format(date, 'dd/MM/yyyy')} às ${time}`;
 
     const newBooking: Booking = {
       id: crypto.randomUUID(),
       clientName: data.clientName,
       clientPhone: data.clientPhone,
-      serviceId: selectedService.id,
-      durationMinutes: selectedService.duration,
+      serviceId: service.id,
+      durationMinutes: service.duration,
       date: dateStr,
-      time: selectedTime,
+      time,
       createdAt: new Date().toISOString(),
       paymentMethod,
       isPaid: false,
@@ -101,6 +163,8 @@ export const BookingForm: React.FC<BookingFormProps> = ({
 
     addBooking(newBooking);
     reset();
+    setPendingConfirmation(null);
+    // The latch stays armed here on purpose — see the ref declaration.
 
     // The shop (admin) is notified automatically by the backend the moment the booking is
     // created — the browser no longer opens WhatsApp on submit.
@@ -108,15 +172,15 @@ export const BookingForm: React.FC<BookingFormProps> = ({
       // The slot is already reserved; the modal only collects the (simulated) payment claim.
       setPendingPixPayment({
         bookingId: newBooking.id,
-        amount: selectedService.price,
-        serviceName: selectedService.name,
+        amount: service.price,
+        serviceName: service.name,
         scheduledFor,
       });
       return;
     }
 
     toast.success('Agendamento realizado com sucesso!', {
-      description: `${selectedService.name} em ${scheduledFor}.`,
+      description: `${service.name} em ${scheduledFor}.`,
     });
     onSuccess();
   };
@@ -204,6 +268,20 @@ export const BookingForm: React.FC<BookingFormProps> = ({
           )}
         </div>
       </form>
+
+      {pendingConfirmation && (
+        <ConfirmBookingDialog
+          serviceName={pendingConfirmation.service.name}
+          price={pendingConfirmation.service.price}
+          dateLabel={pendingConfirmation.dateLabel}
+          weekdayLabel={pendingConfirmation.weekdayLabel}
+          time={pendingConfirmation.time}
+          paymentMethod={paymentMethod}
+          clientName={pendingConfirmation.data.clientName}
+          onConfirm={handleConfirmBooking}
+          onClose={() => setPendingConfirmation(null)}
+        />
+      )}
 
       {pendingPixPayment && (
         <PixPaymentModal
