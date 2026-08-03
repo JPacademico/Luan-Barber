@@ -6,6 +6,19 @@ export const SLOT_INTERVAL_MINUTES = 30;
 /** Hour of day (24h) after which the current day's finished bookings are purged from the active list. */
 export const DAILY_PURGE_HOUR = 22;
 
+/**
+ * Daily lunch break. Nothing is bookable inside this window, on any day the shop is open.
+ *
+ * Half-open [startHour, endHour): a slot at 12:30 is inside the break, a slot at 13:00 is not.
+ * It is deliberately a fixed constant rather than part of `ShopInfo` — the admin's hour editor only
+ * exposes an opening and a closing hour, and a break stored per-day would need migration plus new
+ * controls for a rule that does not vary in practice.
+ */
+export const LUNCH_BREAK = { startHour: 12, endHour: 13 } as const;
+
+/** Display form of the break, so UI copy never re-derives it and drifts. */
+export const LUNCH_BREAK_LABEL = '12:00 – 13:00';
+
 /** Converts "09:30" to the number of minutes since midnight (570). */
 export const timeToMinutes = (time: string): number => {
   const [hours, minutes] = time.split(':').map(Number);
@@ -20,11 +33,24 @@ export const minutesToTime = (totalMinutes: number): string => {
 };
 
 /**
+ * Does a 30-minute slot marker fall inside the lunch break?
+ *
+ * Applied to every marker a booking would consume, not just its start, so a 60-min service at
+ * 11:30 (which would run to 12:30) is refused rather than quietly eating into the break.
+ */
+export const isDuringLunchBreak = (time: string): boolean => {
+  const minutes = timeToMinutes(time);
+  return minutes >= LUNCH_BREAK.startHour * 60 && minutes < LUNCH_BREAK.endHour * 60;
+};
+
+/**
  * Builds the day's bookable slots at 30-minute granularity.
  *
  * Each generated slot is an independent unit: booking 09:30 consumes 09:30 alone and
  * leaves 09:00, 10:00 and 10:30 open. The final slot starts one interval before closing
  * time, so a shop open 09:00–18:00 offers 09:00 through 17:30.
+ *
+ * Slots inside the lunch break are omitted entirely, so the grid jumps from 11:30 to 13:00.
  */
 export const generateTimeSlots = (workingHours: ShopInfo['workingHours']): string[] => {
   const openingMinutes = workingHours.start * 60;
@@ -32,7 +58,9 @@ export const generateTimeSlots = (workingHours: ShopInfo['workingHours']): strin
   const slots: string[] = [];
 
   for (let m = openingMinutes; m + SLOT_INTERVAL_MINUTES <= closingMinutes; m += SLOT_INTERVAL_MINUTES) {
-    slots.push(minutesToTime(m));
+    const slot = minutesToTime(m);
+    if (isDuringLunchBreak(slot)) continue;
+    slots.push(slot);
   }
 
   return slots;
@@ -82,8 +110,9 @@ interface RangeAvailabilityArgs {
  * Can a service of the given duration START at `startTime`?
  *
  * It fits only when every slot it would consume (a) ends by closing time, (b) is free of any
- * existing booking, and (c) is not already in the past. This is what disables 16:30 for a
- * 90-min service when 17:30 is booked, or when the shop closes at 18:00.
+ * existing booking, (c) is not already in the past, and (d) does not touch the lunch break. This
+ * is what disables 16:30 for a 90-min service when 17:30 is booked, or when the shop closes at
+ * 18:00, and what stops a 60-min service starting at 11:30 from running into the break.
  */
 export const isRangeAvailable = ({
   startTime,
@@ -100,6 +129,7 @@ export const isRangeAvailable = ({
   if (lastSlotStart + SLOT_INTERVAL_MINUTES > workingHours.end * 60) return false;
 
   for (const slot of slots) {
+    if (isDuringLunchBreak(slot)) return false;
     if (occupied.has(slot)) return false;
     if (isToday && isSlotInPast(slot, now)) return false;
   }

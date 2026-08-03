@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useShopStore } from '../../store/shopStore';
 import { toast } from 'sonner';
-import { Save, RefreshCw } from 'lucide-react';
+import { Save, RefreshCw, UtensilsCrossed } from 'lucide-react';
 import { pushShopContentToBackend } from '../../lib/adminApi';
+import { LUNCH_BREAK_LABEL } from '../../lib/timeSlots';
 
 /** Selectable hours, 06:00–23:00. Invalid open/close combinations are caught on save. */
 const HOUR_OPTIONS = Array.from({ length: 18 }, (_, i) => i + 6);
@@ -255,6 +256,14 @@ export const ContentEditor: React.FC = () => {
             </div>
           )}
         </div>
+
+        <p className="flex items-start gap-2 text-xs text-brand-gold bg-brand-gold/10 border border-brand-gold/30 rounded-lg px-3 py-2 mt-4">
+          <UtensilsCrossed size={13} className="shrink-0 mt-0.5" />
+          <span>
+            Intervalo de almoço fixo: <strong>{LUNCH_BREAK_LABEL}</strong>. Esses horários não
+            aparecem para os clientes em nenhum dia.
+          </span>
+        </p>
 
         <p className="text-xs text-gray-500 mt-4">Nota: O sistema gera automaticamente intervalos de 30 minutos entre a abertura e fechamento. Domingo permanece fechado.</p>
       </div>
