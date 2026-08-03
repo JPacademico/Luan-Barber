@@ -8,6 +8,7 @@ import {
   ChevronRight,
   CircleDollarSign,
   Inbox,
+  MessageCircle,
   Phone,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -15,7 +16,7 @@ import { useBookingStore } from '../../store/bookingStore';
 import { useShopStore } from '../../store/shopStore';
 import { DAILY_PURGE_HOUR, timeToMinutes } from '../../lib/timeSlots';
 import { toDateKey } from '../../lib/schedule';
-import { buildCancellationWhatsAppUrl } from '../../lib/whatsapp';
+import { buildCancellationWhatsAppUrl, buildConfirmationWhatsAppUrl } from '../../lib/whatsapp';
 import { PaymentStatusBadge } from './PaymentStatusBadge';
 import { CancelAppointmentDialog } from './CancelAppointmentDialog';
 import type { Booking, Service } from '../../types';
@@ -107,6 +108,15 @@ export const AppointmentsPanel: React.FC = () => {
       service: serviceFor(booking),
       shopName: SHOP_NAME,
     });
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  /**
+   * Opens WhatsApp Click-to-Chat with an editable confirmation draft pre-filled. Same
+   * click-to-chat pattern as the cancellation flow: nothing is sent until the admin taps send.
+   */
+  const openConfirmationWhatsApp = (booking: Booking) => {
+    const url = buildConfirmationWhatsAppUrl({ booking, shopName: SHOP_NAME });
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
@@ -267,6 +277,7 @@ export const AppointmentsPanel: React.FC = () => {
                           onVerify={() => handleVerifyPayment(booking)}
                           onComplete={() => handleComplete(booking)}
                           onCancel={() => setCancelTarget({ booking, service })}
+                          onWhatsApp={() => openConfirmationWhatsApp(booking)}
                         />
                       </div>
                     </td>
@@ -381,6 +392,7 @@ interface AppointmentActionsProps {
   onVerify: () => void;
   onComplete: () => void;
   onCancel: () => void;
+  onWhatsApp: () => void;
 }
 
 const AppointmentActions: React.FC<AppointmentActionsProps> = ({
@@ -388,12 +400,28 @@ const AppointmentActions: React.FC<AppointmentActionsProps> = ({
   onVerify,
   onComplete,
   onCancel,
+  onWhatsApp,
 }) => {
+  const whatsAppButton = (
+    <button
+      type="button"
+      onClick={onWhatsApp}
+      aria-label="Enviar confirmação por WhatsApp"
+      title="Enviar confirmação por WhatsApp"
+      className="p-1.5 rounded-lg border border-gray-700 text-slate-400 hover:border-emerald-500/50 hover:text-emerald-400 transition-colors shrink-0"
+    >
+      <MessageCircle size={14} />
+    </button>
+  );
+
   if (booking.status === 'completed') {
     return (
-      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-400">
-        <CheckCircle2 size={14} /> Concluído
-      </span>
+      <>
+        {whatsAppButton}
+        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-400">
+          <CheckCircle2 size={14} /> Concluído
+        </span>
+      </>
     );
   }
 
@@ -403,6 +431,8 @@ const AppointmentActions: React.FC<AppointmentActionsProps> = ({
 
   return (
     <>
+      {whatsAppButton}
+
       {needsPixVerification && (
         <button
           type="button"

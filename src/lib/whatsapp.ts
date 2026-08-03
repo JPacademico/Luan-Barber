@@ -62,5 +62,27 @@ export const buildCancellationWhatsAppUrl = (context: CancellationContext): stri
   return `https://wa.me/${number}?text=${text}`;
 };
 
+interface ConfirmationContext {
+  booking: Booking;
+  shopName: string;
+}
+
+/** A short confirmation message with the booking's date and time, editable before sending. */
+export const composeConfirmationWhatsAppMessage = ({
+  booking,
+  shopName,
+}: ConfirmationContext): string => {
+  const prettyDate = format(parseISO(booking.date), 'dd/MM/yyyy');
+
+  return `Bem-vindo(a) à *${shopName}*! Seu agendamento para ${prettyDate} às ${booking.time} já está confirmado.`;
+};
+
+/** Full wa.me deep link for the confirmation message, ready to open in a new tab. */
+export const buildConfirmationWhatsAppUrl = (context: ConfirmationContext): string => {
+  const number = toWhatsAppNumber(context.booking.clientPhone);
+  const text = encodeURIComponent(composeConfirmationWhatsAppMessage(context));
+  return `https://wa.me/${number}?text=${text}`;
+};
+
 // The new-booking → admin notification is now handled automatically by the backend
 // (database-triggered), so the client-side wa.me builder for it was removed.
