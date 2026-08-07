@@ -18,6 +18,12 @@ interface TimeSlotGridProps {
   selectedService: Service;
   selectedTime: string | null;
   onSelectTime: (time: string) => void;
+  /**
+   * Slot markers to treat as free regardless of `occupied` — the booking being RESCHEDULED, so it
+   * doesn't collide with the slot it currently holds. Caller is responsible for only passing this
+   * when `selectedDate` is the booking's own date; on any other date these markers mean nothing.
+   */
+  ignoreSlots?: Set<string>;
 }
 
 export const TimeSlotGrid: React.FC<TimeSlotGridProps> = ({
@@ -25,6 +31,7 @@ export const TimeSlotGrid: React.FC<TimeSlotGridProps> = ({
   selectedService,
   selectedTime,
   onSelectTime,
+  ignoreSlots,
 }) => {
   // Subscribing to the data rather than the `get()`-based helpers: it is the subscription that
   // makes the grid react to a booking taken on another device or a day the admin just reshaped.
@@ -73,10 +80,11 @@ export const TimeSlotGrid: React.FC<TimeSlotGridProps> = ({
           workingHours,
           occupied,
           isToday: isSelectedDateToday,
+          ignoreSlots,
         }),
-        isStartTaken: occupied.has(time),
+        isStartTaken: occupied.has(time) && !ignoreSlots?.has(time),
       })),
-    [slots, durationMinutes, workingHours, occupied, isSelectedDateToday]
+    [slots, durationMinutes, workingHours, occupied, isSelectedDateToday, ignoreSlots]
   );
 
   const hasAvailableSlot = availability.some(({ isAvailable }) => isAvailable);

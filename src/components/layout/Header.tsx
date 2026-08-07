@@ -16,6 +16,7 @@ const NAV_LINKS: NavLink[] = [
   { label: 'Serviços', path: '/booking', sectionId: 'services' },
   { label: 'Sobre', path: '/', sectionId: 'about' },
   { label: 'Localização', path: '/', sectionId: 'location' },
+  { label: 'Meus Agendamentos', path: '/meus-agendamentos' },
 ];
 
 export const Header: React.FC = () => {

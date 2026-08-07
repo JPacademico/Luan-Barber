@@ -48,7 +48,9 @@ const request = async (path: string, init: RequestInit = {}): Promise<Response> 
 
 // --- Row shapes (snake_case, as stored) --------------------------------------------------------
 
-interface BookingRow {
+/** Exported so lib/bookingLookupApi.ts can type the row shape the lookup Edge Functions return
+ *  (they hand back the same PostgREST row shape) without redeclaring it. */
+export interface BookingRow {
   id: string;
   client_name: string;
   client_phone: string;
@@ -64,6 +66,10 @@ interface BookingRow {
   completed_at: string | null;
   cancelled_at: string | null;
   cancellation_reason: string | null;
+  rescheduled_at: string | null;
+  original_date: string | null;
+  original_time: string | null;
+  cancelled_by: 'admin' | 'client' | null;
 }
 
 interface OverrideRow {
@@ -85,7 +91,9 @@ interface ServiceRow {
 
 // --- Mappers -----------------------------------------------------------------------------------
 
-const rowToBooking = (row: BookingRow): Booking => ({
+/** Exported so lib/bookingLookupApi.ts can map the row shape returned by the lookup Edge Functions
+ *  without duplicating this mapping — those functions return the same PostgREST row shape. */
+export const rowToBooking = (row: BookingRow): Booking => ({
   id: row.id,
   clientName: row.client_name,
   clientPhone: row.client_phone,
@@ -101,6 +109,10 @@ const rowToBooking = (row: BookingRow): Booking => ({
   completedAt: row.completed_at,
   cancelledAt: row.cancelled_at,
   cancellationReason: row.cancellation_reason,
+  rescheduledAt: row.rescheduled_at ?? null,
+  originalDate: row.original_date ?? null,
+  originalTime: row.original_time ? row.original_time.slice(0, 5) : null,
+  cancelledBy: row.cancelled_by ?? null,
 });
 
 const bookingToRow = (booking: Booking): BookingRow => ({
@@ -119,6 +131,10 @@ const bookingToRow = (booking: Booking): BookingRow => ({
   completed_at: booking.completedAt,
   cancelled_at: booking.cancelledAt,
   cancellation_reason: booking.cancellationReason,
+  rescheduled_at: booking.rescheduledAt,
+  original_date: booking.originalDate,
+  original_time: booking.originalTime,
+  cancelled_by: booking.cancelledBy,
 });
 
 /** Cents -> reais. The database stores integers so no float rounding can alter a Pix charge. */
@@ -199,6 +215,12 @@ export const supabaseApi = {
       completedAt: 'completed_at',
       cancelledAt: 'cancelled_at',
       cancellationReason: 'cancellation_reason',
+      date: 'date',
+      time: 'time',
+      rescheduledAt: 'rescheduled_at',
+      originalDate: 'original_date',
+      originalTime: 'original_time',
+      cancelledBy: 'cancelled_by',
     };
 
     const body: Record<string, unknown> = {};

@@ -104,15 +104,23 @@ interface RangeAvailabilityArgs {
   /** True only for the day currently being viewed if it is today. */
   isToday: boolean;
   now?: Date;
+  /**
+   * Slot markers to treat as free even if `occupied` has them — namely the booking currently being
+   * RESCHEDULED. Without this, a booking always collides with itself: its own current slots are in
+   * `occupied` (nothing removed them), so moving it to the same time it already has — or to an
+   * overlapping one — would be refused as "taken" by nothing other than itself.
+   */
+  ignoreSlots?: Set<string>;
 }
 
 /**
  * Can a service of the given duration START at `startTime`?
  *
  * It fits only when every slot it would consume (a) ends by closing time, (b) is free of any
- * existing booking, (c) is not already in the past, and (d) does not touch the lunch break. This
- * is what disables 16:30 for a 90-min service when 17:30 is booked, or when the shop closes at
- * 18:00, and what stops a 60-min service starting at 11:30 from running into the break.
+ * existing booking (other than one explicitly ignored via `ignoreSlots`), (c) is not already in
+ * the past, and (d) does not touch the lunch break. This is what disables 16:30 for a 90-min
+ * service when 17:30 is booked, or when the shop closes at 18:00, and what stops a 60-min service
+ * starting at 11:30 from running into the break.
  */
 export const isRangeAvailable = ({
   startTime,
@@ -121,6 +129,7 @@ export const isRangeAvailable = ({
   occupied,
   isToday,
   now = new Date(),
+  ignoreSlots,
 }: RangeAvailabilityArgs): boolean => {
   const slots = occupiedSlotsFor(startTime, durationMinutes);
   const lastSlotStart = timeToMinutes(slots[slots.length - 1]);
@@ -130,7 +139,7 @@ export const isRangeAvailable = ({
 
   for (const slot of slots) {
     if (isDuringLunchBreak(slot)) return false;
-    if (occupied.has(slot)) return false;
+    if (occupied.has(slot) && !ignoreSlots?.has(slot)) return false;
     if (isToday && isSlotInPast(slot, now)) return false;
   }
 

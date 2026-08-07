@@ -9,6 +9,7 @@ import { useBookingStore } from '../../store/bookingStore';
 import { useShopStore } from '../../store/shopStore';
 import { isRangeAvailable } from '../../lib/timeSlots';
 import { baseHoursForDate, resolveWorkingHours } from '../../lib/schedule';
+import { rememberBooking } from '../../lib/myBookings';
 import type { Booking, PaymentMethod, Service } from '../../types';
 import { PaymentMethodSelector } from './PaymentMethodSelector';
 import { PixPaymentModal } from './PixPaymentModal';
@@ -159,9 +160,14 @@ export const BookingForm: React.FC<BookingFormProps> = ({
       completedAt: null,
       cancelledAt: null,
       cancellationReason: null,
+      rescheduledAt: null,
+      originalDate: null,
+      originalTime: null,
+      cancelledBy: null,
     };
 
     addBooking(newBooking);
+    rememberBooking(newBooking.id);
     reset();
     setPendingConfirmation(null);
     // The latch stays armed here on purpose — see the ref declaration.

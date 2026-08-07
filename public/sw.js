@@ -13,7 +13,7 @@
  * Bump CACHE_VERSION to force old caches out on the next deploy.
  */
 
-const CACHE_VERSION = 'luan-studio-v5';
+const CACHE_VERSION = 'luan-studio-v6';
 const APP_SHELL = [
   '/manifest.webmanifest',
   '/manifest-admin.webmanifest',
@@ -91,7 +91,12 @@ self.addEventListener('push', (event) => {
       icon: '/notification-icon.png',
       badge: '/notification-badge.png',
       data: { url: data.url },
-      tag: 'novo-agendamento',
+      // Each notification type sends its own tag (e.g. `lembrete-<id>`, `cancelado-<id>`), so a
+      // reminder and a cancellation never collide and silently erase one another. A push with no
+      // tag at all still gets a unique one — the old hardcoded 'novo-agendamento' meant every
+      // single push (new booking, reminder, cancellation) replaced whichever came before it.
+      tag: data.tag || `luan-${Date.now()}`,
+      renotify: true,
     })
   );
 });

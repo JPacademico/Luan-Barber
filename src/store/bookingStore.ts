@@ -79,6 +79,10 @@ interface BookingState {
   addBooking: (booking: Booking) => void;
   removeBooking: (id: string) => void;
   cancelBooking: (id: string, reason: string | null) => void;
+  /** Client self-service cancellation from Meus Agendamentos — same effect as cancelBooking, tagged for the admin's benefit. */
+  cancelBookingByClient: (id: string, reason: string | null) => void;
+  /** Moves a booking to a new date/time. Caller is responsible for the availability check (see ignoreSlots in lib/timeSlots). */
+  rescheduleBooking: (id: string, date: string, time: string) => void;
 
   getDayOverride: (date: string) => DayScheduleOverride | undefined;
   closeDay: (date: string) => void;
@@ -200,6 +204,33 @@ export const useBookingStore = create<BookingState>()((set, get) => {
         status: 'cancelled',
         cancelledAt: new Date().toISOString(),
         cancellationReason: reason,
+        cancelledBy: 'admin',
+      };
+      optimistic(mapBooking(id, patch), () => repo.updateBooking(id, patch));
+    },
+
+    cancelBookingByClient: (id, reason) => {
+      const patch: Partial<Booking> = {
+        status: 'cancelled',
+        cancelledAt: new Date().toISOString(),
+        cancellationReason: reason,
+        cancelledBy: 'client',
+      };
+      optimistic(mapBooking(id, patch), () => repo.updateBooking(id, patch));
+    },
+
+    rescheduleBooking: (id, date, time) => {
+      const current = get().allBookings.find((b) => b.id === id);
+      if (!current) return;
+
+      const patch: Partial<Booking> = {
+        date,
+        time,
+        rescheduledAt: new Date().toISOString(),
+        // Preserved from the FIRST move only — a second reschedule must not overwrite the
+        // original with what was itself already a moved slot.
+        originalDate: current.originalDate ?? current.date,
+        originalTime: current.originalTime ?? current.time,
       };
       optimistic(mapBooking(id, patch), () => repo.updateBooking(id, patch));
     },

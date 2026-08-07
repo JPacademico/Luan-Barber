@@ -49,6 +49,14 @@ export interface Booking {
   cancelledAt: string | null;
   /** Optional note from the admin, included in the cancellation WhatsApp draft. */
   cancellationReason: string | null;
+  /** Set when the CLIENT moves their own booking via Meus Agendamentos. */
+  rescheduledAt: string | null;
+  /** The slot first booked, preserved across reschedules. Null until the first reschedule. */
+  originalDate: string | null;
+  /** Companion to originalDate. */
+  originalTime: string | null;
+  /** Who cancelled: the admin panel, or the client via Meus Agendamentos. Null for an active booking. */
+  cancelledBy: 'admin' | 'client' | null;
 }
 
 /**

@@ -45,6 +45,10 @@ const backfillBooking = (booking: Partial<Booking> & { id: string }): Booking =>
   completedAt: booking.completedAt ?? null,
   cancelledAt: booking.cancelledAt ?? null,
   cancellationReason: booking.cancellationReason ?? null,
+  rescheduledAt: booking.rescheduledAt ?? null,
+  originalDate: booking.originalDate ?? null,
+  originalTime: booking.originalTime ?? null,
+  cancelledBy: booking.cancelledBy ?? null,
 });
 
 // -----------------------------------------------------------------------------------------------

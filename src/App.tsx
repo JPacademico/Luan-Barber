@@ -20,6 +20,9 @@ import { useApplyTheme } from './hooks/useApplyTheme';
 const BookingPage = lazy(() =>
   import('./pages/BookingPage').then((m) => ({ default: m.BookingPage }))
 );
+const MyBookingsPage = lazy(() =>
+  import('./pages/MyBookingsPage').then((m) => ({ default: m.MyBookingsPage }))
+);
 const AdminPage = lazy(() => import('./pages/AdminPage').then((m) => ({ default: m.AdminPage })));
 
 function App() {
@@ -43,6 +46,7 @@ function App() {
           <Route element={<PublicLayout />}>
             <Route path="/" element={<HomePage />} />
             <Route path="/booking" element={<BookingPage />} />
+            <Route path="/meus-agendamentos" element={<MyBookingsPage />} />
           </Route>
 
           <Route path="/admin" element={<AdminLayout />}>
