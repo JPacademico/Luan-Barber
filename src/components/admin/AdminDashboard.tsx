@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { BarChart3, CalendarCheck, CalendarOff, Edit3, Tag } from 'lucide-react';
+import { BarChart3, CalendarCheck, CalendarOff, Edit3, QrCode, Tag } from 'lucide-react';
 import { AnalyticsPanel } from './AnalyticsPanel';
 import { AppointmentsPanel } from './AppointmentsPanel';
 import { ContentEditor } from './ContentEditor';
 import { CalendarManager } from './CalendarManager';
 import { ServicesEditor } from './ServicesEditor';
+import { ShareQrPanel } from './ShareQrPanel';
 
-type TabId = 'appointments' | 'services' | 'analytics' | 'content' | 'calendar';
+type TabId = 'appointments' | 'services' | 'analytics' | 'content' | 'calendar' | 'share';
 
 interface Tab {
   id: TabId;
@@ -36,6 +37,7 @@ const TABS: Tab[] = [
     icon: <CalendarOff size={18} />,
     render: () => <CalendarManager />,
   },
+  { id: 'share', label: 'Divulgação', icon: <QrCode size={18} />, render: () => <ShareQrPanel /> },
 ];
 
 export const AdminDashboard: React.FC = () => {

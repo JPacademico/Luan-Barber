@@ -14,6 +14,7 @@ interface NavLink {
 const NAV_LINKS: NavLink[] = [
   { label: 'Início', path: '/', sectionId: 'hero' },
   { label: 'Serviços', path: '/booking', sectionId: 'services' },
+  { label: 'Pacotes', path: '/', sectionId: 'packages' },
   { label: 'Sobre', path: '/', sectionId: 'about' },
   { label: 'Localização', path: '/', sectionId: 'location' },
   { label: 'Meus Agendamentos', path: '/meus-agendamentos' },
@@ -127,8 +128,13 @@ export const Header: React.FC = () => {
       </div>
 
       <div
-        className={`md:hidden absolute top-full left-0 w-full bg-white dark:bg-brand-black shadow-lg overflow-hidden transition-all duration-300 ease-in-out ${
-          isMobileMenuOpen ? 'max-h-96 border-t border-gray-100 dark:border-gray-800' : 'max-h-0'
+        // Six links no longer fit the old fixed 24rem drop-down, so it scrolls instead of
+        // clipping the last item. `overflow` is set on exactly one side of the ternary, never
+        // both, so the open state can't depend on which utility Tailwind emits first.
+        className={`md:hidden absolute top-full left-0 w-full bg-white dark:bg-brand-black shadow-lg overscroll-contain transition-all duration-300 ease-in-out ${
+          isMobileMenuOpen
+            ? 'max-h-[80vh] overflow-y-auto border-t border-gray-100 dark:border-gray-800'
+            : 'max-h-0 overflow-hidden'
         }`}
       >
         <div className="px-4 py-6 flex flex-col space-y-4">

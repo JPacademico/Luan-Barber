@@ -3,6 +3,7 @@ import { HeroCarousel } from '../components/sections/HeroCarousel';
 import { OwnerSection } from '../components/sections/OwnerSection';
 import { LocationSection } from '../components/sections/LocationSection';
 import { BookingCallout } from '../components/sections/BookingCallout';
+import { PackagesSection } from '../components/sections/PackagesSection';
 import { useDocumentMeta } from '../hooks/useDocumentMeta';
 import { PUBLIC_BRANDING } from '../constants/branding';
 
@@ -17,6 +18,7 @@ export const HomePage: React.FC = () => {
     <>
       <HeroCarousel />
       <BookingCallout />
+      <PackagesSection />
       <OwnerSection />
       <LocationSection />
     </>
