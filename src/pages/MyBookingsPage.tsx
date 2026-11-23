@@ -14,18 +14,29 @@ import { ClientCancelDialog } from '../components/mybookings/ClientCancelDialog'
 import { RescheduleDialog } from '../components/mybookings/RescheduleDialog';
 import type { Booking, Service } from '../types';
 
-/** Soonest-first for what's still coming, most-recent-first for what's done — the order a client
- *  actually cares about, rather than a single chronological sort that buries upcoming bookings
- *  under old ones. */
+/** Only the newest few are shown — a client is here to act on what they just booked or changed. */
+const MAX_VISIBLE_BOOKINGS = 3;
+
+/**
+ * When this booking last changed: created, remarcado, cancelado or concluído, whichever came last.
+ *
+ * Parsed to a number rather than compared as text: `createdAt` is written by the browser as
+ * `...Z`, while the same column read back from PostgREST arrives as `...+00:00` with microseconds,
+ * and those two spellings of the same instant do not sort against each other reliably as strings.
+ */
+const lastActivityAt = (booking: Booking): number =>
+  [booking.createdAt, booking.rescheduledAt, booking.cancelledAt, booking.completedAt].reduce(
+    (latest, stamp) => {
+      if (!stamp) return latest;
+      const time = Date.parse(stamp);
+      return Number.isNaN(time) ? latest : Math.max(latest, time);
+    },
+    0
+  );
+
+/** Most recently booked or edited first, regardless of when the appointment itself falls. */
 const sortForDisplay = (bookings: Booking[]): Booking[] =>
-  [...bookings].sort((a, b) => {
-    const aActive = a.status === 'active';
-    const bActive = b.status === 'active';
-    if (aActive !== bActive) return aActive ? -1 : 1;
-    const aKey = `${a.date}T${a.time}`;
-    const bKey = `${b.date}T${b.time}`;
-    return aActive ? aKey.localeCompare(bKey) : bKey.localeCompare(aKey);
-  });
+  [...bookings].sort((a, b) => lastActivityAt(b) - lastActivityAt(a));
 
 export const MyBookingsPage: React.FC = () => {
   const services = useShopStore((state) => state.services);
@@ -118,7 +129,8 @@ export const MyBookingsPage: React.FC = () => {
     });
   };
 
-  const sorted = sortForDisplay(bookings);
+  const visible = sortForDisplay(bookings).slice(0, MAX_VISIBLE_BOOKINGS);
+  const hiddenCount = bookings.length - visible.length;
 
   return (
     <>
@@ -138,7 +150,7 @@ export const MyBookingsPage: React.FC = () => {
         <div className="max-w-2xl mx-auto space-y-6">
           {isLoading ? (
             <p className="text-center text-gray-500 dark:text-gray-400 py-8">Carregando…</p>
-          ) : sorted.length === 0 ? (
+          ) : visible.length === 0 ? (
             <div className="bg-white dark:bg-brand-darkgray rounded-xl border border-gray-200 dark:border-gray-800 py-12 px-6 flex flex-col items-center text-center">
               <CalendarSearch size={36} className="text-gray-300 dark:text-gray-700 mb-3" />
               <p className="text-gray-500 dark:text-gray-400 text-sm">
@@ -147,7 +159,7 @@ export const MyBookingsPage: React.FC = () => {
             </div>
           ) : (
             <div className="space-y-4">
-              {sorted.map((booking) => (
+              {visible.map((booking) => (
                 <MyBookingCard
                   key={booking.id}
                   booking={booking}
@@ -156,6 +168,18 @@ export const MyBookingsPage: React.FC = () => {
                   onReschedule={() => setRescheduleTarget(booking)}
                 />
               ))}
+
+              {/* Said plainly, so a client whose older booking is missing knows it still exists
+                  rather than assuming it was lost. */}
+              {hiddenCount > 0 && (
+                <p className="text-center text-xs text-gray-500 dark:text-gray-400 pt-2">
+                  Mostrando os {MAX_VISIBLE_BOOKINGS} mais recentes.{' '}
+                  {hiddenCount === 1
+                    ? 'Outro agendamento mais antigo não aparece aqui.'
+                    : `Outros ${hiddenCount} agendamentos mais antigos não aparecem aqui.`}{' '}
+                  Fale com a barbearia se precisar de algum deles.
+                </p>
+              )}
             </div>
           )}
 
