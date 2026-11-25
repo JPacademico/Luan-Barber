@@ -14,6 +14,11 @@ const MESSAGES: Record<PushEnableResult, readonly ['success' | 'error', string, 
     'Indisponível neste modo.',
     'O service worker só é registrado no site publicado — teste pelo deploy, não pelo servidor local.',
   ],
+  unauthorized: [
+    'error',
+    'Entre no painel para ativar.',
+    'Se você já entrou, saia e entre novamente — o aparelho é registrado com a sua senha.',
+  ],
   'server-error': [
     'error',
     'O servidor recusou o cadastro.',
@@ -22,7 +27,10 @@ const MESSAGES: Record<PushEnableResult, readonly ['success' | 'error', string, 
   error: ['error', 'Não foi possível ativar. Tente novamente.'],
 };
 
-/** Lets the admin opt this device into Web Push for new-booking alerts. Behind the admin gate. */
+/**
+ * Lets the admin opt this device into Web Push for booking alerts. Behind the admin gate. The
+ * device is registered to whoever is logged in: the owner gets every chair, a barber only theirs.
+ */
 export const PushToggle: React.FC = () => {
   const [busy, setBusy] = useState(false);
 

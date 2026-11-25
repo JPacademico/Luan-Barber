@@ -10,6 +10,7 @@ import {
   Inbox,
   MessageCircle,
   Phone,
+  User,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useBookingStore } from '../../store/bookingStore';
@@ -19,9 +20,15 @@ import { toDateKey } from '../../lib/schedule';
 import { buildCancellationWhatsAppUrl, buildConfirmationWhatsAppUrl } from '../../lib/whatsapp';
 import { PaymentStatusBadge } from './PaymentStatusBadge';
 import { CancelAppointmentDialog } from './CancelAppointmentDialog';
+import { useAdminSession } from './adminSessionContext';
+import { barberName } from '../../constants/barbers';
 import type { Booking, Service } from '../../types';
 
 const SHOP_NAME = 'Luan Studio Barber';
+
+/** Sentinel for "both chairs at once". Only the owner can select it. */
+const ALL_BARBERS = 'all' as const;
+type BarberFilter = typeof ALL_BARBERS | string;
 
 interface AppointmentRow {
   booking: Booking;
@@ -40,33 +47,60 @@ export const AppointmentsPanel: React.FC = () => {
   const cancelBooking = useBookingStore((state) => state.cancelBooking);
   const services = useShopStore((state) => state.services);
 
+  const { isOwner, barberId: ownBarberId, visibleBarbers } = useAdminSession();
+
+  /**
+   * Whose agenda is on screen. The owner starts on the combined view (the shop's whole day is
+   * what they open the panel for) and can narrow to one chair; an employee is pinned to their own
+   * and has no control to change it.
+   */
+  const [barberFilter, setBarberFilter] = useState<BarberFilter>(() =>
+    isOwner ? ALL_BARBERS : ownBarberId
+  );
+  const effectiveFilter: BarberFilter = isOwner ? barberFilter : ownBarberId;
+  const isCombinedView = effectiveFilter === ALL_BARBERS;
+
   const [cancelTarget, setCancelTarget] = useState<AppointmentRow | null>(null);
 
   // The day's list is the default view, but the admin can walk the agenda:
   // bookings are taken up to 7 days ahead, and they were previously unreachable here.
   const [selectedDate, setSelectedDate] = useState<string>(() => toDateKey(new Date()));
 
+  /** Everything this login is allowed to see, before the on-screen barber filter. */
+  const permitted = useMemo(
+    () =>
+      isOwner ? bookings : bookings.filter((booking) => booking.barberId === ownBarberId),
+    [bookings, isOwner, ownBarberId]
+  );
+
   const rows = useMemo<AppointmentRow[]>(
     () =>
-      bookings
+      permitted
         .filter((booking) => booking.date === selectedDate && booking.status !== 'cancelled')
-        .sort((a, b) => timeToMinutes(a.time) - timeToMinutes(b.time))
+        .filter((booking) => isCombinedView || booking.barberId === effectiveFilter)
+        // Same time in two chairs is now possible, so the barber breaks the tie and the order
+        // stays stable instead of flipping between renders.
+        .sort(
+          (a, b) =>
+            timeToMinutes(a.time) - timeToMinutes(b.time) || a.barberId.localeCompare(b.barberId)
+        )
         .map((booking) => ({
           booking,
           service: services.find((s) => s.id === booking.serviceId),
         })),
-    [bookings, selectedDate, services]
+    [permitted, selectedDate, services, isCombinedView, effectiveFilter]
   );
 
   /** Days with bookings, so the admin can see at a glance where the work is. */
   const upcomingDays = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const booking of bookings) {
+    for (const booking of permitted) {
       if (booking.status === 'cancelled') continue;
+      if (!isCombinedView && booking.barberId !== effectiveFilter) continue;
       counts.set(booking.date, (counts.get(booking.date) ?? 0) + 1);
     }
     return counts;
-  }, [bookings]);
+  }, [permitted, isCombinedView, effectiveFilter]);
 
   const summary = useMemo(
     () => ({
@@ -156,6 +190,11 @@ export const AppointmentsPanel: React.FC = () => {
           <p className="text-slate-400 text-sm mt-1 capitalize">
             {format(selectedDateObj, "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })}
           </p>
+          {!isOwner && (
+            <p className="text-slate-500 text-xs mt-1 flex items-center gap-1.5">
+              <User size={11} /> Somente os seus atendimentos
+            </p>
+          )}
         </div>
 
         {/* Grows to the full row on narrow screens rather than squeezing the date input. */}
@@ -197,6 +236,32 @@ export const AppointmentsPanel: React.FC = () => {
         </div>
       </header>
 
+      {isOwner && (
+        <div
+          className="flex flex-wrap gap-2"
+          role="group"
+          aria-label="Filtrar por profissional"
+        >
+          {[{ id: ALL_BARBERS, label: 'Todos' }, ...visibleBarbers.map((b) => ({ id: b.id, label: b.name }))].map(
+            (option) => (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => setBarberFilter(option.id)}
+                aria-pressed={effectiveFilter === option.id}
+                className={`px-4 py-2 rounded-lg text-xs font-medium border transition-colors ${
+                  effectiveFilter === option.id
+                    ? 'bg-brand-gold text-brand-black border-brand-gold'
+                    : 'border-gray-800 text-slate-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                {option.label}
+              </button>
+            )
+          )}
+        </div>
+      )}
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { label: 'Agendamentos', value: summary.total, icon: <CalendarDays size={18} />, tone: 'text-brand-gold bg-brand-gold/10' },
@@ -235,6 +300,7 @@ export const AppointmentsPanel: React.FC = () => {
               <thead>
                 <tr className="border-b border-gray-800 text-left text-xs uppercase tracking-wider text-slate-500">
                   <th className="px-6 py-4 font-medium">Horário</th>
+                  {isCombinedView && <th className="px-6 py-4 font-medium">Profissional</th>}
                   <th className="px-6 py-4 font-medium">Cliente</th>
                   <th className="px-6 py-4 font-medium">Serviço</th>
                   <th className="px-6 py-4 font-medium">Valor</th>
@@ -257,6 +323,11 @@ export const AppointmentsPanel: React.FC = () => {
                     >
                       {booking.time}
                     </td>
+                    {isCombinedView && (
+                      <td className="px-6 py-4 text-slate-300 whitespace-nowrap">
+                        {barberName(booking.barberId)}
+                      </td>
+                    )}
                     <td className="px-6 py-4">
                       <div className="text-white font-medium">{booking.clientName}</div>
                       <div className="text-slate-500 text-xs flex items-center gap-1 mt-0.5">
@@ -315,6 +386,12 @@ export const AppointmentsPanel: React.FC = () => {
                     {formatPrice(service?.price)}
                   </span>
                 </div>
+
+                {isCombinedView && (
+                  <div className="text-slate-500 text-xs flex items-center gap-1 mb-3">
+                    <User size={11} /> {barberName(booking.barberId)}
+                  </div>
+                )}
 
                 <PaymentStatusBadge booking={booking} />
 

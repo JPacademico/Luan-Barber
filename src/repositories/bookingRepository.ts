@@ -1,4 +1,5 @@
 import type { Booking, DayScheduleOverride } from '../types';
+import { DEFAULT_BARBER_ID, SHOP_SCOPE, type ScheduleScope } from '../constants/barbers';
 import { IS_CLOUD_ENABLED } from '../lib/env';
 import { supabaseApi } from '../lib/supabaseClient';
 
@@ -23,7 +24,8 @@ export interface BookingRepository {
   updateBooking(id: string, patch: Partial<Booking>): Promise<void>;
   deleteBooking(id: string): Promise<void>;
   upsertOverride(override: DayScheduleOverride): Promise<void>;
-  deleteOverride(date: string): Promise<void>;
+  /** Scope and date together identify the exception (day_overrides primary key since 0017). */
+  deleteOverride(scope: ScheduleScope, date: string): Promise<void>;
   /** Registers a callback fired when another client/tab changes the data. Returns an unsubscribe. */
   subscribe(onRemoteChange: () => void): () => void;
 }
@@ -34,6 +36,8 @@ const backfillBooking = (booking: Partial<Booking> & { id: string }): Booking =>
   clientName: booking.clientName ?? '',
   clientPhone: booking.clientPhone ?? '',
   serviceId: booking.serviceId ?? '',
+  // Every booking stored before the shop had a second barber belongs to the owner.
+  barberId: booking.barberId ?? DEFAULT_BARBER_ID,
   durationMinutes: booking.durationMinutes ?? 30,
   date: booking.date ?? '',
   time: booking.time ?? '',
@@ -60,10 +64,25 @@ const LOCAL_KEY = 'luan-studio-bookings-repo';
 const LEGACY_PERSIST_KEY = 'luan-studio-bookings';
 
 interface LocalShape {
-  v: 6;
+  v: 7;
   bookings: Booking[];
   overrides: DayScheduleOverride[];
 }
+
+/**
+ * An exception stored before 0017 had no scope. It was shop-wide by definition back then (one
+ * barber, one agenda), so it is read back as shop-wide rather than silently becoming Luan's
+ * personal day off.
+ */
+const backfillOverride = (
+  override: Partial<DayScheduleOverride> & { date: string }
+): DayScheduleOverride => ({
+  date: override.date,
+  barberId: override.barberId ?? SHOP_SCOPE,
+  isClosed: override.isClosed ?? false,
+  startHour: override.startHour ?? null,
+  endHour: override.endHour ?? null,
+});
 
 const readLocal = (): LocalShape => {
   try {
@@ -71,9 +90,9 @@ const readLocal = (): LocalShape => {
     if (raw) {
       const parsed = JSON.parse(raw) as LocalShape;
       return {
-        v: 6,
+        v: 7,
         bookings: (parsed.bookings ?? []).map(backfillBooking),
-        overrides: parsed.overrides ?? [],
+        overrides: (parsed.overrides ?? []).map(backfillOverride),
       };
     }
 
@@ -91,8 +110,8 @@ const readLocal = (): LocalShape => {
       const bookings = [...(state.bookings ?? []), ...(state.archivedBookings ?? [])].map(
         backfillBooking
       );
-      const overrides = Object.values(state.dayOverrides ?? {});
-      const migrated: LocalShape = { v: 6, bookings, overrides };
+      const overrides = Object.values(state.dayOverrides ?? {}).map(backfillOverride);
+      const migrated: LocalShape = { v: 7, bookings, overrides };
       localStorage.setItem(LOCAL_KEY, JSON.stringify(migrated));
       return migrated;
     }
@@ -100,7 +119,7 @@ const readLocal = (): LocalShape => {
     // Corrupt storage: start clean rather than crash the app.
   }
 
-  return { v: 6, bookings: [], overrides: [] };
+  return { v: 7, bookings: [], overrides: [] };
 };
 
 const writeLocal = (shape: LocalShape): void => {
@@ -135,13 +154,20 @@ class LocalBookingRepository implements BookingRepository {
 
   async upsertOverride(override: DayScheduleOverride): Promise<void> {
     const data = readLocal();
-    const overrides = data.overrides.filter((o) => o.date !== override.date);
+    // Replaces only the same scope's exception for that date, so closing the shop on a date does
+    // not wipe a barber's own exception on it (and vice versa).
+    const overrides = data.overrides.filter(
+      (o) => !(o.date === override.date && o.barberId === override.barberId)
+    );
     writeLocal({ ...data, overrides: [...overrides, override] });
   }
 
-  async deleteOverride(date: string): Promise<void> {
+  async deleteOverride(scope: ScheduleScope, date: string): Promise<void> {
     const data = readLocal();
-    writeLocal({ ...data, overrides: data.overrides.filter((o) => o.date !== date) });
+    writeLocal({
+      ...data,
+      overrides: data.overrides.filter((o) => !(o.date === date && o.barberId === scope)),
+    });
   }
 
   subscribe(onRemoteChange: () => void): () => void {
@@ -187,8 +213,8 @@ class SupabaseBookingRepository implements BookingRepository {
     return supabaseApi.upsertOverride(override);
   }
 
-  deleteOverride(date: string): Promise<void> {
-    return supabaseApi.deleteOverride(date);
+  deleteOverride(scope: ScheduleScope, date: string): Promise<void> {
+    return supabaseApi.deleteOverride(scope, date);
   }
 
   /**

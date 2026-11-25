@@ -13,7 +13,7 @@
  * Bump CACHE_VERSION to force old caches out on the next deploy.
  */
 
-const CACHE_VERSION = 'luan-studio-v6';
+const CACHE_VERSION = 'luan-studio-v7';
 const APP_SHELL = [
   '/manifest.webmanifest',
   '/manifest-admin.webmanifest',

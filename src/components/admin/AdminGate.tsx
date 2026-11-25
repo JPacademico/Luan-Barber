@@ -1,38 +1,63 @@
 import React, { useState } from 'react';
 import { Lock } from 'lucide-react';
 import { toast } from 'sonner';
-import { ADMIN_PASSWORD } from '../../constants/defaults';
+import { ADMIN_PASSWORD, BARBER_PASSWORD } from '../../constants/defaults';
+import { BARBERS, DEFAULT_BARBER_ID, type BarberId } from '../../constants/barbers';
 import { IS_BACKEND_ENABLED } from '../../lib/env';
 import { rememberAdminPassword, verifyAdminPassword } from '../../lib/adminApi';
+import { readAdminSession, writeAdminSession, type AdminSession } from '../../lib/adminSession';
+import { AdminSessionProvider } from './AdminSessionProvider';
 
 interface AdminGateProps {
   children: React.ReactNode;
 }
 
+/** The employee barber a non-owner login belongs to, on the no-backend fallback path only. */
+const FALLBACK_EMPLOYEE_ID: BarberId =
+  BARBERS.find((barber) => !barber.isOwner)?.id ?? DEFAULT_BARBER_ID;
+
 /**
- * Password gate for /admin.
+ * Password gate for /admin, now with two logins.
  *
  * When the backend is configured the password is checked *there*, against the ADMIN_PASSWORD
- * secret, so it is no longer shipped in the JS bundle where anyone could read it. That is what
- * makes it safe for the panel to edit `services.price_cents` — the amount Pix charges.
+ * (owner) and BARBER_PASSWORD (employee) secrets, so neither is shipped in the JS bundle where
+ * anyone could read it. The server also decides WHICH login it was: the role comes back from
+ * `verify-admin` and is never chosen by the browser. That is what makes it safe for the owner's
+ * panel to edit `services.price_cents` — the amount Pix charges — while the employee's cannot.
  *
  * Without a backend it falls back to the old in-bundle comparison, so local development and the
  * pre-backend demo keep working. That path is not security and never was; see defaults.ts.
  */
 export const AdminGate: React.FC<AdminGateProps> = ({ children }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return sessionStorage.getItem('adminAuth') === 'true';
-  });
+  const [session, setSession] = useState<AdminSession | null>(() => readAdminSession());
   const [password, setPassword] = useState('');
   const [isChecking, setIsChecking] = useState(false);
 
-  const grantAccess = (accepted: string) => {
-    sessionStorage.setItem('adminAuth', 'true');
+  const grantAccess = (accepted: string, granted: AdminSession) => {
+    writeAdminSession(granted);
     // Kept for the session so privileged writes (price sync) can re-authenticate without
     // asking again. Cleared on logout.
     rememberAdminPassword(accepted);
-    setIsAuthenticated(true);
+    setSession(granted);
     toast.success('Acesso liberado');
+  };
+
+  /** No-backend fallback: compare against the bundled constants and derive the role locally. */
+  const loginOffline = () => {
+    if (password === ADMIN_PASSWORD) {
+      grantAccess(password, { role: 'owner', barberId: DEFAULT_BARBER_ID });
+      return;
+    }
+
+    // Checked second so that if the two constants were ever set to the same string, the owner
+    // (the broader role) wins rather than the employee.
+    if (password === BARBER_PASSWORD) {
+      grantAccess(password, { role: 'barber', barberId: FALLBACK_EMPLOYEE_ID });
+      return;
+    }
+
+    toast.error('Senha incorreta');
+    setPassword('');
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -40,41 +65,38 @@ export const AdminGate: React.FC<AdminGateProps> = ({ children }) => {
     if (isChecking) return;
 
     if (!IS_BACKEND_ENABLED) {
-      if (password === ADMIN_PASSWORD) grantAccess(password);
-      else {
-        toast.error('Senha incorreta');
-        setPassword('');
-      }
+      loginOffline();
       return;
     }
 
     setIsChecking(true);
-    const outcome = await verifyAdminPassword(password);
+    const result = await verifyAdminPassword(password);
     setIsChecking(false);
 
-    if (outcome === 'ok') {
-      grantAccess(password);
+    if (result.outcome === 'ok') {
+      grantAccess(password, { role: result.role, barberId: result.barberId });
       return;
     }
 
     setPassword('');
 
-    if (outcome === 'wrong-password') {
+    if (result.outcome === 'wrong-password') {
       toast.error('Senha incorreta');
-    } else if (outcome === 'unreachable') {
+    } else if (result.outcome === 'unreachable') {
       toast.error('Não foi possível falar com o servidor.', {
         description: 'Verifique sua conexão e tente novamente.',
       });
     } else {
       toast.error('Login administrativo não configurado no servidor.', {
-        description: 'Defina o segredo ADMIN_PASSWORD no backend. Detalhes no console.',
+        description:
+          'Defina os segredos ADMIN_PASSWORD e BARBER_PASSWORD no backend. Detalhes no console.',
         duration: 9000,
       });
     }
   };
 
-  if (isAuthenticated) {
-    return <>{children}</>;
+  if (session) {
+    return <AdminSessionProvider session={session}>{children}</AdminSessionProvider>;
   }
 
   return (
@@ -86,7 +108,7 @@ export const AdminGate: React.FC<AdminGateProps> = ({ children }) => {
           </div>
           <h2 className="font-semibold tracking-tight text-2xl text-white text-center">Área Restrita</h2>
           <p className="text-gray-400 text-sm mt-2 text-center">
-            Digite a senha administrativa para acessar o painel de controle.
+            Digite sua senha para acessar o painel. Cada barbeiro entra com a sua.
           </p>
         </div>
 

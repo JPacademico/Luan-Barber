@@ -1,4 +1,5 @@
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from './env';
+import { DEFAULT_BARBER_ID, SHOP_SCOPE, type ScheduleScope } from '../constants/barbers';
 import type {
   Booking,
   BookingStatus,
@@ -55,6 +56,7 @@ export interface BookingRow {
   client_name: string;
   client_phone: string;
   service_id: string;
+  barber_id: string;
   duration_minutes: number;
   date: string;
   time: string;
@@ -74,6 +76,8 @@ export interface BookingRow {
 
 interface OverrideRow {
   date: string;
+  /** 'shop' for a shop-wide exception, or a barber id for that barber's own. See migration 0017. */
+  barber_id: string;
   is_closed: boolean;
   start_hour: number | null;
   end_hour: number | null;
@@ -98,6 +102,8 @@ export const rowToBooking = (row: BookingRow): Booking => ({
   clientName: row.client_name,
   clientPhone: row.client_phone,
   serviceId: row.service_id,
+  // Rows written before migration 0017 have no barber; they are all the owner's.
+  barberId: row.barber_id ?? DEFAULT_BARBER_ID,
   durationMinutes: row.duration_minutes ?? 30,
   date: row.date,
   time: (row.time ?? '').slice(0, 5), // Postgres `time` may come back as HH:mm:ss
@@ -120,6 +126,7 @@ const bookingToRow = (booking: Booking): BookingRow => ({
   client_name: booking.clientName,
   client_phone: booking.clientPhone,
   service_id: booking.serviceId,
+  barber_id: booking.barberId,
   duration_minutes: booking.durationMinutes,
   date: booking.date,
   time: booking.time,
@@ -148,6 +155,7 @@ const rowToService = (row: ServiceRow): Service => ({
 
 const rowToOverride = (row: OverrideRow): DayScheduleOverride => ({
   date: row.date,
+  barberId: row.barber_id ?? SHOP_SCOPE,
   isClosed: row.is_closed,
   startHour: row.start_hour,
   endHour: row.end_hour,
@@ -155,6 +163,7 @@ const rowToOverride = (row: OverrideRow): DayScheduleOverride => ({
 
 const overrideToRow = (override: DayScheduleOverride): OverrideRow => ({
   date: override.date,
+  barber_id: override.barberId,
   is_closed: override.isClosed,
   start_hour: override.startHour,
   end_hour: override.endHour,
@@ -164,6 +173,12 @@ const overrideToRow = (override: DayScheduleOverride): OverrideRow => ({
 
 export const supabaseApi = {
   async fetchBookings(): Promise<Booking[]> {
+    // Deliberately NOT ordered by barber_id. PostgREST rejects the whole query with a 400 if a
+    // column in `order` does not exist, so naming it here would blank the entire booking list on
+    // any database that has not had migration 0017 applied — the public calendar would then show
+    // every slot as free. `select=*` has no such problem: it returns whatever columns exist, and
+    // `rowToBooking` backfills a missing barber to the owner. That keeps a frontend deployed
+    // ahead of its migration merely barber-less rather than broken.
     const response = await request('/bookings?select=*&order=date.asc,time.asc');
     const rows = (await response.json()) as BookingRow[];
     return rows.map(rowToBooking);
@@ -215,6 +230,7 @@ export const supabaseApi = {
       completedAt: 'completed_at',
       cancelledAt: 'cancelled_at',
       cancellationReason: 'cancellation_reason',
+      barberId: 'barber_id',
       date: 'date',
       time: 'time',
       rescheduledAt: 'rescheduled_at',
@@ -249,7 +265,14 @@ export const supabaseApi = {
     });
   },
 
-  async deleteOverride(date: string): Promise<void> {
-    await request(`/day_overrides?date=eq.${encodeURIComponent(date)}`, { method: 'DELETE' });
+  /**
+   * Both columns are matched: the primary key is (date, barber_id) since 0017, so filtering on
+   * the date alone would delete every barber's exception for that day as well as the shop's.
+   */
+  async deleteOverride(scope: ScheduleScope, date: string): Promise<void> {
+    await request(
+      `/day_overrides?date=eq.${encodeURIComponent(date)}&barber_id=eq.${encodeURIComponent(scope)}`,
+      { method: 'DELETE' }
+    );
   },
 };

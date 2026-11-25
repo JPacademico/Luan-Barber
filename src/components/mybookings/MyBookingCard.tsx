@@ -1,7 +1,8 @@
 import React from 'react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CalendarClock, CheckCircle2, Clock, Phone, XCircle } from 'lucide-react';
+import { CalendarClock, CheckCircle2, Clock, Phone, User, XCircle } from 'lucide-react';
+import { barberName } from '../../constants/barbers';
 import type { Booking, Service } from '../../types';
 
 interface MyBookingCardProps {
@@ -47,6 +48,9 @@ export const MyBookingCard: React.FC<MyBookingCardProps> = ({ booking, service, 
           <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1.5 mt-1">
             <Clock size={13} className="shrink-0" />
             {format(parseISO(booking.date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })} às {booking.time}
+          </p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1.5 mt-1">
+            <User size={13} className="shrink-0" /> com {barberName(booking.barberId)}
           </p>
           <p className="text-xs text-gray-400 dark:text-gray-500 flex items-center gap-1.5 mt-1">
             <Phone size={11} className="shrink-0" /> {booking.clientPhone}

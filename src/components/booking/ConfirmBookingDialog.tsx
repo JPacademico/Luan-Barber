@@ -1,10 +1,12 @@
 import React from 'react';
-import { CalendarCheck, Clock, CreditCard, Scissors, X } from 'lucide-react';
+import { CalendarCheck, Clock, CreditCard, Scissors, User, X } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import type { PaymentMethod } from '../../types';
 
 interface ConfirmBookingDialogProps {
   serviceName: string;
+  /** Display name of the chosen barber — restated so a mis-tap on the picker is caught here. */
+  barberLabel: string;
   price: number;
   /** Already formatted for display, e.g. "05/08/2026". */
   dateLabel: string;
@@ -32,6 +34,7 @@ const PAYMENT_LABEL: Record<PaymentMethod, string> = {
  */
 export const ConfirmBookingDialog: React.FC<ConfirmBookingDialogProps> = ({
   serviceName,
+  barberLabel,
   price,
   dateLabel,
   weekdayLabel,
@@ -43,6 +46,7 @@ export const ConfirmBookingDialog: React.FC<ConfirmBookingDialogProps> = ({
 }) => {
   const rows = [
     { icon: <Scissors size={15} />, label: 'Serviço', value: serviceName },
+    { icon: <User size={15} />, label: 'Profissional', value: barberLabel },
     { icon: <CalendarCheck size={15} />, label: 'Data', value: `${dateLabel} · ${weekdayLabel}` },
     { icon: <Clock size={15} />, label: 'Horário', value: time },
     { icon: <CreditCard size={15} />, label: 'Pagamento', value: PAYMENT_LABEL[paymentMethod] },
@@ -73,7 +77,7 @@ export const ConfirmBookingDialog: React.FC<ConfirmBookingDialogProps> = ({
             id="confirm-booking-title"
             className="font-display font-bold text-xl sm:text-2xl leading-snug text-brand-black dark:text-white text-balance"
           >
-            Agendar {serviceName} para {dateLabel} às {time}?
+            Agendar {serviceName} com {barberLabel} para {dateLabel} às {time}?
           </h3>
 
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">

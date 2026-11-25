@@ -6,6 +6,7 @@ import { AdminInstallButton } from '../pwa/AdminInstallButton';
 import { PushToggle } from '../admin/PushToggle';
 import { SyncStatusBadge } from '../admin/SyncStatusBadge';
 import { forgetAdminPassword } from '../../lib/adminApi';
+import { clearAdminSession } from '../../lib/adminSession';
 import { useDocumentMeta } from '../../hooks/useDocumentMeta';
 import { ADMIN_BRANDING } from '../../constants/branding';
 
@@ -16,7 +17,7 @@ export const AdminLayout: React.FC = () => {
   // visitor's own light/dark preference for the public site intact.
 
   const handleLogout = () => {
-    sessionStorage.removeItem('adminAuth');
+    clearAdminSession();
     // The password is held for the session so price saves can re-authenticate; drop it too.
     forgetAdminPassword();
     window.location.reload();

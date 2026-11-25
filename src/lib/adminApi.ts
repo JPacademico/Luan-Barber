@@ -1,4 +1,6 @@
 import { API_BASE_URL, IS_BACKEND_ENABLED } from './env';
+import { DEFAULT_BARBER_ID, isBarberId, type BarberId } from '../constants/barbers';
+import type { AdminRole } from './adminSession';
 import type { Service, ShopContent } from '../types';
 
 /**
@@ -38,9 +40,33 @@ export const forgetAdminPassword = (): void => {
 
 export type AdminAuthOutcome = 'ok' | 'wrong-password' | 'unreachable' | 'misconfigured';
 
-/** Verifies the typed password against the backend. */
-export const verifyAdminPassword = async (password: string): Promise<AdminAuthOutcome> => {
-  if (!IS_BACKEND_ENABLED) return 'misconfigured';
+/**
+ * The gate's answer. On success the SERVER decides which login this was — the browser never
+ * chooses its own role, so an employee can't promote themselves to owner by editing storage and
+ * reloading (the role is re-issued by `verify-admin` on every login).
+ */
+export interface AdminAuthResult {
+  outcome: AdminAuthOutcome;
+  role: AdminRole;
+  barberId: BarberId;
+}
+
+/** Shape `verify-admin` returns on success. */
+interface VerifyAdminBody {
+  ok?: boolean;
+  role?: unknown;
+  barberId?: unknown;
+}
+
+/** Verifies the typed password against the backend, which also tells us who it belongs to. */
+export const verifyAdminPassword = async (password: string): Promise<AdminAuthResult> => {
+  const failure = (outcome: AdminAuthOutcome): AdminAuthResult => ({
+    outcome,
+    role: 'owner',
+    barberId: DEFAULT_BARBER_ID,
+  });
+
+  if (!IS_BACKEND_ENABLED) return failure('misconfigured');
 
   try {
     const response = await fetch(`${API_BASE_URL}/verify-admin`, {
@@ -49,18 +75,41 @@ export const verifyAdminPassword = async (password: string): Promise<AdminAuthOu
       body: JSON.stringify({ password }),
     });
 
-    if (response.ok) return 'ok';
-    if (response.status === 401) return 'wrong-password';
+    if (response.ok) {
+      const body = (await response.json().catch(() => ({}))) as VerifyAdminBody;
+
+      // An older deployment of verify-admin answers `{ ok: true }` with no role. Treating that as
+      // the owner matches what it used to mean, so a frontend deployed ahead of the backend still
+      // lets Luan in instead of locking the panel entirely.
+      const role: AdminRole = body.role === 'barber' ? 'barber' : 'owner';
+      const barberId = isBarberId(body.barberId) ? body.barberId : DEFAULT_BARBER_ID;
+
+      if (role === 'barber' && !isBarberId(body.barberId)) {
+        // Refusing is the safe failure mode: without a valid id we'd have to guess whose agenda
+        // this login owns, and guessing wrong would show an employee the owner's bookings.
+        console.error('[admin] verify-admin accepted a barber login without a known barberId');
+        return failure('misconfigured');
+      }
+
+      return { outcome: 'ok', role, barberId };
+    }
+
+    if (response.status === 401) return failure('wrong-password');
 
     // 500 here means ADMIN_PASSWORD was never set as a secret — a setup gap, not a typo.
     console.error('[admin] verify-admin failed', response.status, await response.text().catch(() => ''));
-    return 'misconfigured';
+    return failure('misconfigured');
   } catch (error) {
     console.error('[admin] verify-admin unreachable', error);
-    return 'unreachable';
+    return failure('unreachable');
   }
 };
 
+/**
+ * `unauthorized` covers both "no password held for this session" and "the server refused it".
+ * The latter is what an employee gets: `update-services` / `update-content` check the OWNER
+ * secret specifically, so the employee's password is rejected there even though it logs them in.
+ */
 export type ServiceSyncOutcome = 'synced' | 'skipped' | 'unauthorized' | 'failed';
 
 /**

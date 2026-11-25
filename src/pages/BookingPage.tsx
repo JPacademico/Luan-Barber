@@ -15,7 +15,10 @@ export const BookingPage: React.FC = () => {
     title: 'Agendamento e Preços | Luan Studio Barber',
   });
 
-  // Picking from the catalogue seeds step 1 of the checkout, so the client lands mid-flow.
+  /**
+   * Picking from the catalogue is step zero, so it scrolls down to the checkout — which now
+   * opens on the barber step rather than on a second copy of this very list.
+   */
   const handleSelectFromCatalogue = useCallback(
     (service: Service) => {
       selectService(service);
@@ -23,6 +26,11 @@ export const BookingPage: React.FC = () => {
     },
     [selectService]
   );
+
+  /** "Trocar serviço" in the checkout sends the client back up to the one service picker. */
+  const handleChangeService = useCallback(() => {
+    document.getElementById('services')?.scrollIntoView({ behavior: 'smooth' });
+  }, []);
 
   return (
     <>
@@ -34,7 +42,7 @@ export const BookingPage: React.FC = () => {
           Serviços & Agendamento
         </h1>
         <p className="text-gray-400 max-w-2xl mx-auto">
-          Escolha o serviço, veja os horários livres e confirme sua reserva em poucos cliques.
+          Escolha o serviço, o profissional, veja os horários livres e confirme sua reserva.
         </p>
       </header>
 
@@ -43,7 +51,7 @@ export const BookingPage: React.FC = () => {
         onSelectService={handleSelectFromCatalogue}
       />
 
-      <BookingSection flow={flow} />
+      <BookingSection flow={flow} onChangeService={handleChangeService} />
     </>
   );
 };

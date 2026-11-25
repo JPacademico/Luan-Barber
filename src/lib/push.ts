@@ -1,9 +1,15 @@
 import { API_BASE_URL, IS_PUSH_ENABLED, VAPID_PUBLIC_KEY } from './env';
+import { readAdminPassword } from './adminApi';
+import { barberName, isBarberId } from '../constants/barbers';
 
 /**
  * Subscribes the admin's device to Web Push, so a new booking can reach them even with the app
  * closed. Only meant to run behind the admin gate, triggered by a click (permission prompts
  * require a user gesture).
+ *
+ * The device is registered AS the logged-in barber: the server works out who from the session
+ * password and tags the row with it, so the owner's devices hear about every booking and an
+ * employee's only about their own (Luan-Studio-Back 0018_push_per_barber.sql).
  */
 
 // VAPID public key is base64url; the browser wants a Uint8Array backed by a plain ArrayBuffer
@@ -23,6 +29,7 @@ export type PushEnableResult =
   | 'unsupported'
   | 'not-configured'
   | 'no-service-worker'
+  | 'unauthorized'
   | 'server-error'
   | 'error';
 
@@ -33,6 +40,12 @@ export const isPushSupported = (): boolean =>
 export const enableAdminPush = async (): Promise<PushEnableResult> => {
   if (!IS_PUSH_ENABLED) return 'not-configured';
   if (!isPushSupported()) return 'unsupported';
+
+  // Checked before the permission prompt: asking for notification permission and then failing to
+  // register the device is the worst order. Empty only for a panel that was already open across
+  // the deploy that added this, or with sessionStorage disabled — logging in again fixes both.
+  const password = readAdminPassword();
+  if (!password) return 'unauthorized';
 
   // `serviceWorker.ready` never resolves when no worker was ever registered — and registration is
   // production-only (registerServiceWorker.ts). Without this guard the button hangs on "Ativando…"
@@ -59,11 +72,14 @@ export const enableAdminPush = async (): Promise<PushEnableResult> => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        password,
         endpoint: json.endpoint,
         keys: json.keys,
         userAgent: navigator.userAgent,
       }),
     });
+
+    if (res.status === 401) return 'unauthorized';
 
     if (!res.ok) {
       // The status and body are the only way to tell "function not deployed" (404) from
@@ -80,8 +96,17 @@ export const enableAdminPush = async (): Promise<PushEnableResult> => {
     // pushed ones. If this appears but new-booking alerts never do, the browser half is proven
     // good and the problem is server-side (trigger / VAPID keys) — which is otherwise very hard
     // to tell apart from a silently blocked notification.
+    //
+    // The body says WHOSE bookings this device will hear about, as the server recorded it — the
+    // one thing someone enabling push on a shared device most needs to know.
+    const saved = (await res.json().catch(() => ({}))) as { role?: unknown; barberId?: unknown };
+    const scope =
+      saved.role === 'barber' && isBarberId(saved.barberId)
+        ? `os agendamentos de ${barberName(saved.barberId)}`
+        : 'todos os agendamentos da barbearia';
+
     await ready.showNotification('Notificações ativadas ✅', {
-      body: 'Você receberá um aviso aqui quando um cliente agendar.',
+      body: `Você receberá um aviso aqui sobre ${scope}.`,
       icon: '/notification-icon.png',
       badge: '/notification-badge.png',
       tag: 'push-ativado',

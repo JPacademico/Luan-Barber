@@ -1,21 +1,35 @@
 import React from 'react';
-import { Scissors } from 'lucide-react';
+import { ArrowUp, Scissors } from 'lucide-react';
 import { SectionHeading } from '../ui/SectionHeading';
-import { useShopStore } from '../../store/shopStore';
 import { BookingCalendar } from '../booking/BookingCalendar';
 import { TimeSlotGrid } from '../booking/TimeSlotGrid';
 import { BookingForm } from '../booking/BookingForm';
+import { BarberPicker } from '../booking/BarberPicker';
+import { barberName } from '../../constants/barbers';
 import type { BookingFlow } from '../../hooks/useBookingFlow';
 
 interface BookingSectionProps {
   flow: BookingFlow;
+  /** Sends the client back up to the service catalogue, which is the only service picker. */
+  onChangeService: () => void;
 }
 
 const formatPrice = (price: number): string => `R$ ${price.toFixed(2).replace('.', ',')}`;
 
-export const BookingSection: React.FC<BookingSectionProps> = ({ flow }) => {
-  const services = useShopStore((state) => state.services);
-  const { selectedService, selectedDate, selectedTime } = flow;
+/**
+ * Steps 1–3 of the checkout: barber, date, time. The SERVICE is chosen in the catalogue above
+ * (ServicesSection) and only summarised here.
+ *
+ * This section used to repeat the service list as its own "1. Selecione o Serviço" step, which
+ * meant tapping a service in the catalogue scrolled the client down to a second, identical service
+ * picker instead of to the part they still had to fill in. There is now exactly one place to pick
+ * a service, and this section starts where that choice leaves off.
+ */
+export const BookingSection: React.FC<BookingSectionProps> = ({ flow, onChangeService }) => {
+  const { selectedService, selectedBarberId, selectedDate, selectedTime } = flow;
+
+  const hasService = Boolean(selectedService);
+  const hasBarber = Boolean(selectedBarberId);
 
   return (
     <section id="booking" className="py-20 md:py-28 bg-brand-cream dark:bg-brand-black transition-colors scroll-mt-24">
@@ -27,53 +41,63 @@ export const BookingSection: React.FC<BookingSectionProps> = ({ flow }) => {
 
         <div className="mt-12 grid grid-cols-1 lg:grid-cols-12 gap-8">
           <div className="lg:col-span-8 space-y-8">
-            <div className="bg-white dark:bg-brand-darkgray rounded-xl border border-gray-200 dark:border-gray-800 p-6 shadow-sm">
-              <h4 className="font-display font-bold text-lg text-brand-black dark:text-white mb-4">
-                1. Selecione o Serviço
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {services.map((service) => {
-                  const isSelected = selectedService?.id === service.id;
-
-                  return (
-                    <button
-                      key={service.id}
-                      type="button"
-                      onClick={() => flow.selectService(service)}
-                      aria-pressed={isSelected}
-                      className={`flex items-center justify-between p-4 rounded-lg border text-left transition-all ${
-                        isSelected
-                          ? 'border-brand-gold bg-brand-gold/5 dark:bg-brand-gold/10 ring-1 ring-brand-gold'
-                          : 'border-gray-200 dark:border-gray-700 hover:border-brand-gold/50 bg-white dark:bg-[#1a1a1a]'
-                      }`}
-                    >
-                      <span className="flex items-center gap-3">
-                        <span
-                          className={`p-2 rounded-full ${
-                            isSelected
-                              ? 'bg-brand-gold text-brand-black'
-                              : 'bg-gray-100 dark:bg-gray-800 text-gray-500'
-                          }`}
-                        >
-                          <Scissors size={18} />
-                        </span>
-                        <span>
-                          <span className="block font-bold text-brand-black dark:text-white">
-                            {service.name}
-                          </span>
-                          <span className="block text-xs text-gray-500">{service.duration} min</span>
+            {/* What the catalogue above chose, restated so the client never loses the thread. */}
+            <div className="bg-white dark:bg-brand-darkgray rounded-xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm">
+              {selectedService ? (
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="p-2 rounded-full bg-brand-gold text-brand-black shrink-0">
+                      <Scissors size={18} />
+                    </span>
+                    <div className="min-w-0">
+                      <span className="block text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                        Serviço escolhido
+                      </span>
+                      <span className="block font-bold text-brand-black dark:text-white truncate">
+                        {selectedService.name}
+                        <span className="font-normal text-gray-500 text-sm">
+                          {' '}· {selectedService.duration} min · {formatPrice(selectedService.price)}
                         </span>
                       </span>
-                      <span className="font-bold text-brand-gold">{formatPrice(service.price)}</span>
-                    </button>
-                  );
-                })}
-              </div>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={onChangeService}
+                    className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-700 text-xs font-medium text-gray-600 dark:text-gray-300 hover:border-brand-gold hover:text-brand-gold transition-colors"
+                  >
+                    <ArrowUp size={13} /> Trocar serviço
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={onChangeService}
+                  className="w-full flex items-center justify-center gap-2 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-brand-gold transition-colors py-2"
+                >
+                  <ArrowUp size={15} /> Escolha um serviço na lista acima para começar
+                </button>
+              )}
             </div>
 
             <div
               className={`transition-opacity duration-300 ${
-                selectedService ? 'opacity-100' : 'opacity-50 pointer-events-none'
+                hasService ? 'opacity-100' : 'opacity-50 pointer-events-none'
+              }`}
+            >
+              <h4 className="font-display font-bold text-lg text-brand-black dark:text-white mb-4">
+                1. Escolha o Profissional
+              </h4>
+              <BarberPicker
+                selectedBarberId={selectedBarberId}
+                onSelectBarber={flow.selectBarber}
+              />
+            </div>
+
+            <div
+              className={`transition-opacity duration-300 ${
+                hasService && hasBarber ? 'opacity-100' : 'opacity-50 pointer-events-none'
               }`}
             >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -81,15 +105,20 @@ export const BookingSection: React.FC<BookingSectionProps> = ({ flow }) => {
                   <h4 className="font-display font-bold text-lg text-brand-black dark:text-white mb-4">
                     2. Escolha a Data
                   </h4>
-                  <BookingCalendar selectedDate={selectedDate} onSelectDate={flow.selectDate} />
+                  <BookingCalendar
+                    barberId={selectedBarberId}
+                    selectedDate={selectedDate}
+                    onSelectDate={flow.selectDate}
+                  />
                 </div>
 
                 <div>
                   <h4 className="font-display font-bold text-lg text-brand-black dark:text-white mb-4">
                     3. Escolha o Horário
                   </h4>
-                  {selectedDate && selectedService ? (
+                  {selectedDate && selectedService && selectedBarberId ? (
                     <TimeSlotGrid
+                      barberId={selectedBarberId}
                       selectedDate={selectedDate}
                       selectedService={selectedService}
                       selectedTime={selectedTime}
@@ -97,7 +126,9 @@ export const BookingSection: React.FC<BookingSectionProps> = ({ flow }) => {
                     />
                   ) : (
                     <div className="bg-white dark:bg-brand-darkgray rounded-xl border border-gray-200 dark:border-gray-800 p-6 shadow-sm h-full flex items-center justify-center text-center text-gray-500">
-                      Selecione uma data no calendário primeiro.
+                      {selectedBarberId
+                        ? 'Selecione uma data no calendário primeiro.'
+                        : 'Escolha o profissional para ver os horários livres.'}
                     </div>
                   )}
                 </div>
@@ -112,6 +143,7 @@ export const BookingSection: React.FC<BookingSectionProps> = ({ flow }) => {
           >
             <BookingForm
               selectedService={selectedService}
+              selectedBarberId={selectedBarberId}
               selectedDate={selectedDate}
               selectedTime={selectedTime}
               paymentMethod={flow.paymentMethod}
@@ -129,6 +161,12 @@ export const BookingSection: React.FC<BookingSectionProps> = ({ flow }) => {
                     <dt className="text-gray-400">Serviço:</dt>
                     <dd className="font-bold">{selectedService.name}</dd>
                   </div>
+                  {selectedBarberId && (
+                    <div className="flex justify-between">
+                      <dt className="text-gray-400">Profissional:</dt>
+                      <dd className="font-bold">{barberName(selectedBarberId)}</dd>
+                    </div>
+                  )}
                   {selectedDate && (
                     <div className="flex justify-between">
                       <dt className="text-gray-400">Data:</dt>

@@ -28,6 +28,13 @@ export interface Booking {
   clientPhone: string;
   serviceId: string;
   /**
+   * Which barber will do the work. A `BarberId` in practice, typed as a plain string so a booking
+   * taken by a barber who later leaves the roster still loads and renders (see
+   * constants/barbers.ts `barberName`). Availability is computed per barber: two bookings may
+   * share one date and time as long as their `barberId` differs.
+   */
+  barberId: string;
+  /**
    * Service length snapshotted at booking time, in minutes. Drives how many consecutive
    * 30-min slots this booking occupies. Snapshotted (not read live from the service) so that
    * later price/duration edits never retroactively change an existing booking's footprint.
@@ -69,6 +76,12 @@ export interface Booking {
  */
 export interface DayScheduleOverride {
   date: string; // YYYY-MM-DD
+  /**
+   * Who the exception applies to: `'shop'` for everyone (owner-only), or a `BarberId` for that
+   * one barber's day off. A `ScheduleScope` in practice — see constants/barbers.ts. Together with
+   * `date` it identifies the row (`day_overrides` primary key since migration 0017).
+   */
+  barberId: string;
   isClosed: boolean;
   startHour: number | null;
   endHour: number | null;

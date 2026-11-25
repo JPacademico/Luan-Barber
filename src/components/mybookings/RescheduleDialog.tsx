@@ -6,9 +6,10 @@ import { Modal } from '../ui/Modal';
 import { BookingCalendar } from '../booking/BookingCalendar';
 import { TimeSlotGrid } from '../booking/TimeSlotGrid';
 import { isRangeAvailable, occupiedSlotsFor } from '../../lib/timeSlots';
-import { baseHoursForDate, resolveWorkingHours } from '../../lib/schedule';
+import { baseHoursForDate, overrideKey, resolveDayForBarber } from '../../lib/schedule';
 import { useBookingStore } from '../../store/bookingStore';
 import { useShopStore } from '../../store/shopStore';
+import { barberName, SHOP_SCOPE } from '../../constants/barbers';
 import type { Booking, Service } from '../../types';
 
 interface RescheduleDialogProps {
@@ -18,7 +19,13 @@ interface RescheduleDialogProps {
   onClose: () => void;
 }
 
-/** Same calendar + grid as the public booking flow, seeded on the booking's own current date. */
+/**
+ * Same calendar + grid as the public booking flow, seeded on the booking's own current date.
+ *
+ * A reschedule never changes the barber: the client booked a specific person, and silently moving
+ * them to the other chair because it had a free slot would be a different appointment. Switching
+ * barber means cancelling and booking again.
+ */
 export const RescheduleDialog: React.FC<RescheduleDialogProps> = ({
   booking,
   service,
@@ -26,7 +33,7 @@ export const RescheduleDialog: React.FC<RescheduleDialogProps> = ({
   onClose,
 }) => {
   const shopInfo = useShopStore((state) => state.shopInfo);
-  const getDayOverride = useBookingStore((state) => state.getDayOverride);
+  const dayOverrides = useBookingStore((state) => state.dayOverrides);
   const getOccupiedSlots = useBookingStore((state) => state.getOccupiedSlots);
 
   const [selectedDate, setSelectedDate] = useState<Date>(() => new Date(`${booking.date}T00:00:00`));
@@ -57,14 +64,23 @@ export const RescheduleDialog: React.FC<RescheduleDialogProps> = ({
   const handleConfirm = () => {
     if (!selectedTime || !service) return;
 
-    const stillAvailable = isRangeAvailable({
-      startTime: selectedTime,
-      durationMinutes: service.duration,
-      workingHours: resolveWorkingHours(baseHoursForDate(shopInfo, selectedDate), getDayOverride(dateStr)),
-      occupied: getOccupiedSlots(dateStr),
-      isToday: dateStr === format(new Date(), 'yyyy-MM-dd'),
-      ignoreSlots,
+    const resolved = resolveDayForBarber({
+      date: selectedDate,
+      baseHours: baseHoursForDate(shopInfo, selectedDate),
+      shopOverride: dayOverrides[overrideKey(SHOP_SCOPE, dateStr)],
+      barberOverride: dayOverrides[overrideKey(booking.barberId, dateStr)],
     });
+
+    const stillAvailable =
+      !resolved.isClosed &&
+      isRangeAvailable({
+        startTime: selectedTime,
+        durationMinutes: service.duration,
+        workingHours: resolved.hours,
+        occupied: getOccupiedSlots(booking.barberId, dateStr),
+        isToday: dateStr === format(new Date(), 'yyyy-MM-dd'),
+        ignoreSlots,
+      });
 
     if (!stillAvailable) {
       toast.error('Este horário acabou de ser ocupado.', {
@@ -101,8 +117,8 @@ export const RescheduleDialog: React.FC<RescheduleDialogProps> = ({
             Escolher novo horário
           </h3>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-            {service?.name ?? 'Serviço'} · atualmente em {format(new Date(`${booking.date}T00:00:00`), 'dd/MM/yyyy')} às{' '}
-            {booking.time}
+            {service?.name ?? 'Serviço'} com {barberName(booking.barberId)} · atualmente em{' '}
+            {format(new Date(`${booking.date}T00:00:00`), 'dd/MM/yyyy')} às {booking.time}
           </p>
         </header>
 
@@ -113,8 +129,13 @@ export const RescheduleDialog: React.FC<RescheduleDialogProps> = ({
           </p>
         ) : (
           <div className="space-y-6">
-            <BookingCalendar selectedDate={selectedDate} onSelectDate={handleSelectDate} />
+            <BookingCalendar
+              barberId={booking.barberId}
+              selectedDate={selectedDate}
+              onSelectDate={handleSelectDate}
+            />
             <TimeSlotGrid
+              barberId={booking.barberId}
               selectedDate={selectedDate}
               selectedService={service}
               selectedTime={selectedTime}

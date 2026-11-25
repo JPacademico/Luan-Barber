@@ -69,13 +69,112 @@ export const hasCustomHours = (
   return resolved.start !== defaultHours.start || resolved.end !== defaultHours.end;
 };
 
-/** Short human-readable summary of a day's schedule, for badges and tooltips. */
-export const describeDaySchedule = (
-  defaultHours: WorkingHours,
-  override: DayScheduleOverride | undefined
-): string => {
-  if (override?.isClosed) return 'Fechado o dia todo';
-  if (!hasCustomHours(defaultHours, override)) return `Horário normal (${formatHoursRange(defaultHours)})`;
 
-  return `Horário especial: ${formatHoursRange(resolveWorkingHours(defaultHours, override))}`;
+// --- Per-barber schedule resolution ------------------------------------------------------------
+
+/**
+ * Key a `DayScheduleOverride` is stored under in the booking store.
+ *
+ * Since migration 0017 an exception is identified by BOTH the date and who it applies to, so the
+ * store's map can no longer be keyed by date alone — the shop's holiday and Augusto's day off on
+ * the same date are two separate rows that must not overwrite each other.
+ */
+/* `scope` is a ScheduleScope in practice, but typed as the raw string a stored row carries:
+ * a booking may name a barber who has since left the roster, and that row's exceptions still
+ * have to be looked up rather than rejected by the type system. */
+export const overrideKey = (scope: string, date: string): string => `${scope}:${date}`;
+
+/** Why a day offers no slots, or null when it is open. */
+export type ClosedReason =
+  /** Sunday: the shop never opens. */
+  | 'weekly'
+  /** The owner closed the whole shop (holiday, maintenance). */
+  | 'shop'
+  /** This barber's own day off; the other chair may still be working. */
+  | 'barber';
+
+export interface ResolvedDay {
+  isClosed: boolean;
+  closedBy: ClosedReason | null;
+  /** The bookable window. Meaningless when `isClosed`; left at the base hours so callers can format it. */
+  hours: WorkingHours;
+  /** Open, but on a narrower window than this weekday's default. */
+  isCustom: boolean;
+}
+
+/** The later opening and the earlier closing of two windows — never wider than either. */
+const intersect = (a: WorkingHours, b: WorkingHours): WorkingHours => ({
+  start: Math.max(a.start, b.start),
+  end: Math.min(a.end, b.end),
+});
+
+interface ResolveDayArgs {
+  date: Date;
+  baseHours: WorkingHours;
+  /** The `'shop'`-scoped exception for this date, if any. Applies to every barber. */
+  shopOverride: DayScheduleOverride | undefined;
+  /** This barber's own exception for this date, if any. */
+  barberOverride: DayScheduleOverride | undefined;
+}
+
+/**
+ * What one barber's day actually looks like, after the shop's exception and their own.
+ *
+ * The two compose by INTERSECTION rather than substitution: a barber narrowing their own hours
+ * must not be able to widen them past a shop-wide short day, and the shop closing must win over
+ * any barber window. This is the single place that rule lives — the public calendar, the slot
+ * grid, the booking commit check and the admin editor all resolve through it, so none of them can
+ * disagree about whether a slot exists.
+ */
+export const resolveDayForBarber = ({
+  date,
+  baseHours,
+  shopOverride,
+  barberOverride,
+}: ResolveDayArgs): ResolvedDay => {
+  if (isWeeklyClosedDay(date)) {
+    return { isClosed: true, closedBy: 'weekly', hours: baseHours, isCustom: false };
+  }
+
+  if (shopOverride?.isClosed) {
+    return { isClosed: true, closedBy: 'shop', hours: baseHours, isCustom: false };
+  }
+
+  if (barberOverride?.isClosed) {
+    return { isClosed: true, closedBy: 'barber', hours: baseHours, isCustom: false };
+  }
+
+  let hours = resolveWorkingHours(baseHours, shopOverride);
+  if (barberOverride) hours = intersect(hours, resolveWorkingHours(baseHours, barberOverride));
+
+  // A window can be narrowed until nothing fits (opens 18:00, closes 18:00). That is a closed day
+  // in every way that matters, attributed to whoever narrowed it last.
+  if (isEmptyWindow(hours)) {
+    return {
+      isClosed: true,
+      closedBy: barberOverride ? 'barber' : 'shop',
+      hours: baseHours,
+      isCustom: false,
+    };
+  }
+
+  return {
+    isClosed: false,
+    closedBy: null,
+    hours,
+    isCustom: hours.start !== baseHours.start || hours.end !== baseHours.end,
+  };
+};
+
+/** Short human-readable summary of a resolved day, for calendar tooltips. */
+export const describeResolvedDay = (resolved: ResolvedDay, barberLabel: string): string => {
+  if (resolved.isClosed) {
+    if (resolved.closedBy === 'shop') return 'Barbearia fechada neste dia';
+    if (resolved.closedBy === 'barber') return `${barberLabel} não atende neste dia`;
+    return 'Fechado';
+  }
+
+  return resolved.isCustom
+    ? `Horário especial: ${formatHoursRange(resolved.hours)}`
+    : `Horário normal (${formatHoursRange(resolved.hours)})`;
 };

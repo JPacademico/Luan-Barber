@@ -13,6 +13,16 @@ import type { Service, DailySpecial, OwnerProfile, ShopInfo, CarouselImage } fro
 export const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || 'Luan@2015';
 
 /**
+ * The employee barber's gate password, used on the SAME no-backend fallback path as
+ * ADMIN_PASSWORD above and carrying exactly the same caveat: it is compiled into the bundle and
+ * is not security.
+ *
+ * In production the backend is configured, so the real check is the `BARBER_PASSWORD` secret in
+ * Supabase and this value is never consulted. Set that secret; don't rely on this.
+ */
+export const BARBER_PASSWORD = import.meta.env.VITE_BARBER_PASSWORD || '1005gugu';
+
+/**
  * Canonical, geocodable address used to build the map embed.
  * Kept separate from the display address, which carries the extra suite/mall detail
  * that Google cannot resolve.

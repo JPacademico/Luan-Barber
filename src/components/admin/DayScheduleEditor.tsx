@@ -1,13 +1,23 @@
 import React, { useMemo, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CalendarOff, Clock, RotateCcw, X } from 'lucide-react';
+import { CalendarOff, Clock, RotateCcw, Store, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useBookingStore } from '../../store/bookingStore';
 import { useShopStore } from '../../store/shopStore';
-import { baseHoursForDate, formatHour, formatHoursRange, isEmptyWindow, resolveWorkingHours } from '../../lib/schedule';
+import { SHOP_SCOPE, scopeLabel, type ScheduleScope } from '../../constants/barbers';
+import {
+  baseHoursForDate,
+  formatHour,
+  formatHoursRange,
+  isEmptyWindow,
+  overrideKey,
+  resolveWorkingHours,
+} from '../../lib/schedule';
 
 interface DayScheduleEditorProps {
+  /** Whose day this edits: `'shop'` (everyone) or one barber. */
+  scope: ScheduleScope;
   /** YYYY-MM-DD of the day being edited. */
   date: string;
   onClose: () => void;
@@ -15,10 +25,10 @@ interface DayScheduleEditorProps {
 
 /** Hour options span the shop's regular window, since an override can only narrow the day. */
 const buildHourOptions = (from: number, to: number): number[] =>
-  Array.from({ length: to - from + 1 }, (_, i) => from + i);
+  Array.from({ length: Math.max(0, to - from + 1) }, (_, i) => from + i);
 
-export const DayScheduleEditor: React.FC<DayScheduleEditorProps> = ({ date, onClose }) => {
-  const getDayOverride = useBookingStore((state) => state.getDayOverride);
+export const DayScheduleEditor: React.FC<DayScheduleEditorProps> = ({ scope, date, onClose }) => {
+  const dayOverrides = useBookingStore((state) => state.dayOverrides);
   const closeDay = useBookingStore((state) => state.closeDay);
   const resetDay = useBookingStore((state) => state.resetDay);
   const setDayHours = useBookingStore((state) => state.setDayHours);
@@ -26,15 +36,41 @@ export const DayScheduleEditor: React.FC<DayScheduleEditorProps> = ({ date, onCl
   const shopInfo = useShopStore((state) => state.shopInfo);
 
   const parsedDate = parseISO(date);
-  const override = getDayOverride(date);
-  // A Saturday's override is relative to Saturday's own hours, not the weekday window.
-  const defaultHours = baseHoursForDate(shopInfo, parsedDate);
+  const isShopScope = scope === SHOP_SCOPE;
+
+  const override = dayOverrides[overrideKey(scope, date)];
+  const shopOverride = dayOverrides[overrideKey(SHOP_SCOPE, date)];
+
+  /**
+   * The window this scope is being narrowed from.
+   *
+   * A Saturday's override is relative to Saturday's own hours, not the weekday window. And for a
+   * BARBER the ceiling is the shop's hours for that date, not the shop's default: if the owner
+   * already shortened the day to 09:00–12:00, offering the barber a 20:00 closing hour would let
+   * them "open" during hours the shop is shut.
+   */
+  const defaultHours = useMemo(() => {
+    const base = baseHoursForDate(shopInfo, parsedDate);
+    return isShopScope ? base : resolveWorkingHours(base, shopOverride);
+  }, [shopInfo, parsedDate, isShopScope, shopOverride]);
+
   const resolved = resolveWorkingHours(defaultHours, override);
 
-  const [startHour, setStartHour] = useState(resolved.start);
-  const [endHour, setEndHour] = useState(resolved.end);
+  // Clamped into `defaultHours`, which for a barber is the shop's window for THIS date. A stored
+  // barber override can fall outside it — the owner may have shortened the day afterwards — and
+  // an out-of-range value has no matching <option>, leaving the select with nothing selected.
+  const clamp = (hour: number, lowest: number, highest: number): number =>
+    Math.min(Math.max(hour, lowest), highest);
 
-  const bookingsCount = getBookingsForDate(date).length;
+  const [startHour, setStartHour] = useState(() =>
+    clamp(resolved.start, defaultHours.start, defaultHours.end - 1)
+  );
+  const [endHour, setEndHour] = useState(() =>
+    clamp(resolved.end, defaultHours.start + 1, defaultHours.end)
+  );
+
+  /** Only the appointments a change here would actually affect. */
+  const bookingsCount = getBookingsForDate(date, isShopScope ? undefined : scope).length;
 
   const startOptions = useMemo(
     () => buildHourOptions(defaultHours.start, defaultHours.end - 1),
@@ -51,8 +87,9 @@ export const DayScheduleEditor: React.FC<DayScheduleEditorProps> = ({ date, onCl
     if (isWindowInvalid) return;
 
     // Store only the edges that actually differ, so later changes to the shop's default hours
-    // still flow through to days the admin never explicitly narrowed.
+    // still flow through to days this scope never explicitly narrowed.
     setDayHours(
+      scope,
       date,
       startHour === defaultHours.start ? null : startHour,
       endHour === defaultHours.end ? null : endHour
@@ -61,38 +98,49 @@ export const DayScheduleEditor: React.FC<DayScheduleEditorProps> = ({ date, onCl
     const isBackToDefault = startHour === defaultHours.start && endHour === defaultHours.end;
     toast.success(
       isBackToDefault
-        ? `${format(parsedDate, 'dd/MM')} voltou ao horário normal.`
-        : `${format(parsedDate, 'dd/MM')} aberto das ${formatHoursRange({ start: startHour, end: endHour })}.`
+        ? `${format(parsedDate, 'dd/MM')} voltou ao horário normal (${scopeLabel(scope)}).`
+        : `${format(parsedDate, 'dd/MM')}: ${scopeLabel(scope)} das ${formatHoursRange({ start: startHour, end: endHour })}.`
     );
     onClose();
   };
 
   const handleCloseDay = () => {
     if (bookingsCount > 0) {
+      const what = isShopScope ? 'Fechar o dia' : 'Marcar folga';
       const confirmed = confirm(
-        `Existem ${bookingsCount} agendamento(s) neste dia. Fechar o dia NÃO cancela os agendamentos existentes. Deseja continuar?`
+        `Existem ${bookingsCount} agendamento(s) nesta agenda neste dia. ${what} NÃO cancela os agendamentos existentes. Deseja continuar?`
       );
       if (!confirmed) return;
     }
 
-    closeDay(date);
-    toast.error(`Dia ${format(parsedDate, 'dd/MM/yyyy')} fechado. Bloqueado no calendário público.`);
+    closeDay(scope, date);
+    toast.error(
+      isShopScope
+        ? `Barbearia fechada em ${format(parsedDate, 'dd/MM/yyyy')}. Bloqueado para todos.`
+        : `Folga de ${scopeLabel(scope)} em ${format(parsedDate, 'dd/MM/yyyy')}.`
+    );
     onClose();
   };
 
   const handleReset = () => {
-    resetDay(date);
-    toast.success(`Dia ${format(parsedDate, 'dd/MM/yyyy')} reaberto no horário normal.`);
+    resetDay(scope, date);
+    toast.success(
+      `${format(parsedDate, 'dd/MM/yyyy')}: ${scopeLabel(scope)} voltou ao horário normal.`
+    );
     onClose();
   };
 
   return (
     <div className="bg-black rounded-xl border border-gray-800 p-5">
       <header className="flex items-start justify-between gap-3 mb-5">
-        <div>
+        <div className="min-w-0">
           <h4 className="text-white font-semibold tracking-tight capitalize">
             {format(parsedDate, "EEEE, d 'de' MMMM", { locale: ptBR })}
           </h4>
+          <p className="text-xs mt-1 flex items-center gap-1.5 text-brand-gold">
+            {isShopScope ? <Store size={11} /> : <CalendarOff size={11} />}
+            {scopeLabel(scope)}
+          </p>
           <p className="text-xs text-slate-500 mt-0.5">
             Horário padrão: {formatHoursRange(defaultHours)}
             {bookingsCount > 0 && ` · ${bookingsCount} agendamento(s)`}
@@ -111,7 +159,9 @@ export const DayScheduleEditor: React.FC<DayScheduleEditorProps> = ({ date, onCl
       {override?.isClosed ? (
         <div className="flex items-center gap-2 p-3 mb-5 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs">
           <CalendarOff size={14} className="shrink-0" />
-          Este dia está fechado. Reabra para definir um horário.
+          {isShopScope
+            ? 'A barbearia está fechada neste dia. Reabra para definir um horário.'
+            : `${scopeLabel(scope)} está de folga neste dia. Desfaça para definir um horário.`}
         </div>
       ) : (
         <div className="space-y-4 mb-5">
@@ -192,7 +242,8 @@ export const DayScheduleEditor: React.FC<DayScheduleEditorProps> = ({ date, onCl
             onClick={handleCloseDay}
             className="flex items-center justify-center gap-2 py-2 rounded-lg border border-red-500/40 text-red-400 text-xs font-medium hover:bg-red-500/10 transition-colors"
           >
-            <CalendarOff size={14} /> Fechar o dia todo
+            <CalendarOff size={14} />
+            {isShopScope ? 'Fechar a barbearia o dia todo' : 'Folga o dia todo'}
           </button>
         )}
 

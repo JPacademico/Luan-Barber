@@ -1,9 +1,14 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useBookingStore } from '../../store/bookingStore';
 import { useShopStore } from '../../store/shopStore';
-import { Calendar, DollarSign, Clock, Scissors } from 'lucide-react';
+import { Calendar, DollarSign, Clock, Scissors, User } from 'lucide-react';
 import { isSameMonth, parseISO } from 'date-fns';
 import { YearlyLogChart } from './YearlyLogChart';
+import { useAdminSession } from './adminSessionContext';
+import { barberName } from '../../constants/barbers';
+
+/** Sentinel for the owner's combined, whole-shop numbers. */
+const ALL_BARBERS = 'all' as const;
 
 export const AnalyticsPanel: React.FC = () => {
   // Each slice is subscribed to separately: a selector returning a fresh array on every render
@@ -11,6 +16,16 @@ export const AnalyticsPanel: React.FC = () => {
   const activeBookings = useBookingStore((state) => state.bookings);
   const archivedBookings = useBookingStore((state) => state.archivedBookings);
   const services = useShopStore((state) => state.services);
+
+  const { isOwner, barberId: ownBarberId, visibleBarbers } = useAdminSession();
+
+  /**
+   * Whose numbers these are. The owner can read the shop as a whole or one chair at a time; an
+   * employee only ever sees their own, so the control isn't rendered for them and the scope is
+   * forced to their id regardless of state.
+   */
+  const [scope, setScope] = useState<string>(() => (isOwner ? ALL_BARBERS : ownBarberId));
+  const effectiveScope = isOwner ? scope : ownBarberId;
 
   /**
    * The barber's log: active + archived, cancellations dropped.
@@ -20,8 +35,10 @@ export const AnalyticsPanel: React.FC = () => {
    */
   const bookings = useMemo(
     () =>
-      [...archivedBookings, ...activeBookings].filter((b) => b.status !== 'cancelled'),
-    [archivedBookings, activeBookings]
+      [...archivedBookings, ...activeBookings]
+        .filter((b) => b.status !== 'cancelled')
+        .filter((b) => effectiveScope === ALL_BARBERS || b.barberId === effectiveScope),
+    [archivedBookings, activeBookings, effectiveScope]
   );
 
   const currentMonthBookings = useMemo(() => {
@@ -81,9 +98,39 @@ export const AnalyticsPanel: React.FC = () => {
     [bookings]
   );
 
+  const scopeLabelText =
+    effectiveScope === ALL_BARBERS ? 'Toda a barbearia' : barberName(effectiveScope);
+
   return (
     <div className="space-y-6">
-      
+      {isOwner ? (
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar métricas por profissional">
+          {[{ id: ALL_BARBERS, label: 'Toda a barbearia' }, ...visibleBarbers.map((b) => ({ id: b.id, label: b.name }))].map(
+            (option) => (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => setScope(option.id)}
+                aria-pressed={effectiveScope === option.id}
+                className={`px-4 py-2 rounded-lg text-xs font-medium border transition-colors ${
+                  effectiveScope === option.id
+                    ? 'bg-brand-gold text-brand-black border-brand-gold'
+                    : 'border-gray-800 text-slate-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                {option.label}
+              </button>
+            )
+          )}
+        </div>
+      ) : (
+        // Stated explicitly: these are per-chair figures, and reading them as the shop's total
+        // would badly mislead.
+        <p className="text-xs text-slate-500 flex items-center gap-1.5">
+          <User size={12} /> Números apenas dos seus atendimentos ({scopeLabelText}).
+        </p>
+      )}
+
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         

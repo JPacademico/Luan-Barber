@@ -8,8 +8,9 @@ import { bookingFormSchema, type BookingFormData } from '../../lib/validations';
 import { useBookingStore } from '../../store/bookingStore';
 import { useShopStore } from '../../store/shopStore';
 import { isRangeAvailable } from '../../lib/timeSlots';
-import { baseHoursForDate, resolveWorkingHours } from '../../lib/schedule';
+import { baseHoursForDate, overrideKey, resolveDayForBarber } from '../../lib/schedule';
 import { rememberBooking } from '../../lib/myBookings';
+import { barberName, SHOP_SCOPE, type BarberId } from '../../constants/barbers';
 import type { Booking, PaymentMethod, Service } from '../../types';
 import { PaymentMethodSelector } from './PaymentMethodSelector';
 import { PixPaymentModal } from './PixPaymentModal';
@@ -17,6 +18,8 @@ import { ConfirmBookingDialog } from './ConfirmBookingDialog';
 
 interface BookingFormProps {
   selectedService: Service | null;
+  /** Which chair the booking is for. Null until the client picks one; nothing can be written then. */
+  selectedBarberId: BarberId | null;
   selectedDate: Date | null;
   selectedTime: string | null;
   paymentMethod: PaymentMethod;
@@ -40,6 +43,7 @@ interface PendingPixPayment {
 interface PendingConfirmation {
   data: BookingFormData;
   service: Service;
+  barberId: BarberId;
   date: Date;
   dateStr: string;
   time: string;
@@ -49,6 +53,7 @@ interface PendingConfirmation {
 
 export const BookingForm: React.FC<BookingFormProps> = ({
   selectedService,
+  selectedBarberId,
   selectedDate,
   selectedTime,
   paymentMethod,
@@ -58,7 +63,7 @@ export const BookingForm: React.FC<BookingFormProps> = ({
   const addBooking = useBookingStore((state) => state.addBooking);
   const claimPixPayment = useBookingStore((state) => state.claimPixPayment);
   const getOccupiedSlots = useBookingStore((state) => state.getOccupiedSlots);
-  const getDayOverride = useBookingStore((state) => state.getDayOverride);
+  const dayOverrides = useBookingStore((state) => state.dayOverrides);
   const shopInfo = useShopStore((state) => state.shopInfo);
   const [pendingPixPayment, setPendingPixPayment] = useState<PendingPixPayment | null>(null);
   const [pendingConfirmation, setPendingConfirmation] = useState<PendingConfirmation | null>(null);
@@ -83,14 +88,32 @@ export const BookingForm: React.FC<BookingFormProps> = ({
    * Is the whole span the service needs still free? Between picking a slot and confirming it,
    * another device may have taken part of it. The UI already hides conflicts; this guards the race.
    */
-  const isSlotStillFree = (service: Service, date: Date, dateStr: string, time: string): boolean =>
-    isRangeAvailable({
+  const isSlotStillFree = (
+    service: Service,
+    barberId: BarberId,
+    date: Date,
+    dateStr: string,
+    time: string
+  ): boolean => {
+    // Resolved the same way the grid resolves it, so the two cannot disagree: the shop's exception
+    // and this barber's own, intersected. A day closed for either means no slot exists at all.
+    const resolved = resolveDayForBarber({
+      date,
+      baseHours: baseHoursForDate(shopInfo, date),
+      shopOverride: dayOverrides[overrideKey(SHOP_SCOPE, dateStr)],
+      barberOverride: dayOverrides[overrideKey(barberId, dateStr)],
+    });
+    if (resolved.isClosed) return false;
+
+    return isRangeAvailable({
       startTime: time,
       durationMinutes: service.duration,
-      workingHours: resolveWorkingHours(baseHoursForDate(shopInfo, date), getDayOverride(dateStr)),
-      occupied: getOccupiedSlots(dateStr),
+      workingHours: resolved.hours,
+      // Per barber: the other chair being busy at this time is irrelevant.
+      occupied: getOccupiedSlots(barberId, dateStr),
       isToday: dateStr === format(new Date(), 'yyyy-MM-dd'),
     });
+  };
 
   const warnSlotTaken = () =>
     toast.error('Este horário acabou de ser ocupado.', {
@@ -102,14 +125,14 @@ export const BookingForm: React.FC<BookingFormProps> = ({
    * here too so a client is never asked to confirm a time that is already gone.
    */
   const onSubmit = (data: BookingFormData) => {
-    if (!selectedService || !selectedDate || !selectedTime) {
-      toast.error('Por favor, selecione o serviço, data e horário.');
+    if (!selectedService || !selectedBarberId || !selectedDate || !selectedTime) {
+      toast.error('Por favor, selecione o serviço, o profissional, a data e o horário.');
       return;
     }
 
     const dateStr = format(selectedDate, 'yyyy-MM-dd');
 
-    if (!isSlotStillFree(selectedService, selectedDate, dateStr, selectedTime)) {
+    if (!isSlotStillFree(selectedService, selectedBarberId, selectedDate, dateStr, selectedTime)) {
       warnSlotTaken();
       return;
     }
@@ -120,6 +143,7 @@ export const BookingForm: React.FC<BookingFormProps> = ({
     setPendingConfirmation({
       data,
       service: selectedService,
+      barberId: selectedBarberId,
       date: selectedDate,
       dateStr,
       time: selectedTime,
@@ -133,10 +157,10 @@ export const BookingForm: React.FC<BookingFormProps> = ({
     if (!pendingConfirmation || isCommittingRef.current) return;
     isCommittingRef.current = true;
 
-    const { data, service, date, dateStr, time } = pendingConfirmation;
+    const { data, service, barberId, date, dateStr, time } = pendingConfirmation;
 
     // Checked again at the real commit point: the dialog may have sat open for a while.
-    if (!isSlotStillFree(service, date, dateStr, time)) {
+    if (!isSlotStillFree(service, barberId, date, dateStr, time)) {
       setPendingConfirmation(null);
       warnSlotTaken();
       return;
@@ -149,6 +173,7 @@ export const BookingForm: React.FC<BookingFormProps> = ({
       clientName: data.clientName,
       clientPhone: data.clientPhone,
       serviceId: service.id,
+      barberId,
       durationMinutes: service.duration,
       date: dateStr,
       time,
@@ -186,7 +211,7 @@ export const BookingForm: React.FC<BookingFormProps> = ({
     }
 
     toast.success('Agendamento realizado com sucesso!', {
-      description: `${service.name} em ${scheduledFor}.`,
+      description: `${service.name} com ${barberName(barberId)} em ${scheduledFor}.`,
     });
     onSuccess();
   };
@@ -212,7 +237,9 @@ export const BookingForm: React.FC<BookingFormProps> = ({
     onSuccess();
   };
 
-  const isFormReady = Boolean(selectedService && selectedDate && selectedTime && isValid);
+  const isFormReady = Boolean(
+    selectedService && selectedBarberId && selectedDate && selectedTime && isValid
+  );
 
   return (
     <div className="bg-white dark:bg-brand-darkgray rounded-xl border border-gray-200 dark:border-gray-800 p-6 shadow-sm">
@@ -269,7 +296,7 @@ export const BookingForm: React.FC<BookingFormProps> = ({
 
           {!isFormReady && (
             <p className="text-xs text-center text-gray-500 mt-3">
-              Preencha todos os dados e selecione um horário para confirmar.
+              Escolha o profissional, o horário e preencha seus dados para confirmar.
             </p>
           )}
         </div>
@@ -278,6 +305,7 @@ export const BookingForm: React.FC<BookingFormProps> = ({
       {pendingConfirmation && (
         <ConfirmBookingDialog
           serviceName={pendingConfirmation.service.name}
+          barberLabel={barberName(pendingConfirmation.barberId)}
           price={pendingConfirmation.service.price}
           dateLabel={pendingConfirmation.dateLabel}
           weekdayLabel={pendingConfirmation.weekdayLabel}
